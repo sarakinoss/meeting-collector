@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Meeting Collector</title>
+</head>
+<body>
+<h1>📅 Collected Meetings</h1>
+<table border="1">
+    <tr>
+        <th>Msg Account</th>
+        <th>Msg Folder</th>
+        <!--<th>Msg ID</th>-->
+        <th>Msg Date</th>
+        <th>Msg Subject</th>
+        <th>Msg Sender</th>
+        <th>Msg Attendants</th>
+        <th>Meet Platform</th>
+        <th>Meet ID</th>
+        <th>Meet Attendants</th>
+        <th>Meet Date</th>
+        <th>Meet Link</th>
+    </tr>
+    {% for m in meetings %}
+    <tr>
+        <td>{{ m["msg_account"] }}</td>
+        <td>{{ m["msg_folder"] }}</td>
+        <!--<td>{{ m["msg_id"] }}</td>-->
+        <td>{{ m["msg_date"] }}</td>
+        <td>{{ m["msg_subject"] }}</td>
+        <td>{{ m["msg_sender"] }}</td>
+        <td>{{ m["msg_attendants"] }}</td>
+        <td>{{ m["meet_platform"] }}</td>
+        <td>{{ m["meet_id"] }}</td>
+        <td>{{ m["meet_attendants"] }}</td>
+        <td>{{ m["meet_date"] }}</td>
+        <td><a href="{{ m["meet_link"] }}" target="_blank">Join</a></td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

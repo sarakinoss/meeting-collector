@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+.env
+.python-version
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs & runtime
+*.log
+meeting_collector.log
+
+# Databases / local data
+*.sqlite3
+*.db
+meetings.db
+
+# Local config / secrets
+accounts.json
+gmail.json
