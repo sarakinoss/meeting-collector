@@ -87,6 +87,7 @@
     let ALL = [];      // raw meetings from API
     let EVENTS = [];   // transformed events with date & link
     let calendar = null; // FullCalendar instance
+    let statusTimer = null;
 
     function deriveTitle(m) {
         const subject = m.msg_subject?.trim();
@@ -96,7 +97,7 @@
 
     function transform(meetings) {
         return meetings
-            .filter(m => !!m.meet_link && !!m.meet_date)
+            .filter(m => /*!!m.meet_link &&*/ !!m.meet_date)
             .map(m => ({
                 id: m.meet_id,
                 title: deriveTitle(m),
@@ -253,9 +254,12 @@
                 },
                 eventContent(arg) {
                     const p = (arg.event.extendedProps.platform || '').toLowerCase();
-                    const badge = p === 'zoom' ? 'badge-zoom' : p === 'teams' ? 'badge-teams' : p === 'google' ? 'badge-google' : 'bg-slate-100 text-slate-700';
                     const inner = document.createElement('div');
-                    inner.innerHTML = `<div class="truncate">${arg.event.title}</div><div class="mt-0.5 ${badge} badge">${p || 'other'}</div>`;
+                    // const badge = p === 'zoom' ? 'badge-zoom' : p === 'teams' ? 'badge-teams' : p === 'google' ? 'badge-google' : 'bg-slate-100 text-slate-700';
+                    // inner.innerHTML = `<div class="truncate">${arg.event.title}</div><div class="mt-0.5 ${badge} badge">${p || 'other'}</div>`;
+                    const map = { zoom: 'bg-blue-100 text-blue-700', teams: 'bg-purple-100 text-purple-700', google: 'bg-green-100 text-green-700' };
+                    const badge = map[p] || 'bg-slate-100 text-slate-700';
+                    inner.innerHTML = `<div class="truncate">${arg.event.title}</div><div class="mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badge}">${p || 'other'}</div>`;
                     return { domNodes: [inner] };
                 }
             });

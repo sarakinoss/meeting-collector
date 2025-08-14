@@ -53,6 +53,8 @@ apscheduler==3.10.4
 # Great for basic "every 10 minutes" jobs without needing APScheduler's full complexity
 schedule>=1.2.1
 
+sqlalchemy
+
 # 🔍 Quick Comparison:
 # -------------------------------
 # | Feature / Aspect     | `apscheduler`                                 | `schedule`                                         |

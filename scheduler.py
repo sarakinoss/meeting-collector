@@ -11,7 +11,7 @@
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from email_parser import extract_meetings
-from app.db import store_meetings_to_db
+from app.db.crud import store_meetings_to_db
 
 # Initializes the background scheduler (using APScheduler) and:
 # 1. Immediately fetches and stores meetings when the service starts.

@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 
-from app.db import init_db, get_all_meetings_as_dict
+from app.db.crud import get_all_meetings_as_dict, store_meetings_to_db
 from scheduler import start_scheduler
 
 from app.db.init_db import init_db
