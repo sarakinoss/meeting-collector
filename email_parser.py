@@ -24,8 +24,6 @@ from dateutil import tz, parser as dateparser
 from bs4 import BeautifulSoup
 import re
 
-
-
 #TODO Mark found email with meetings as RED in order to distiguish at a glance.
 #TODO For the same meeting ID it has to keep the last message meeting date like sent@16/4/25, 08:50 Libra
 

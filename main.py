@@ -1,42 +1,32 @@
-
-# ✅ main.py: Web Interface Server
-# This is the entry point for your web application (built using FastAPI). It:
-
-# Initializes the database (by calling init_db())
-
-# Starts the background scheduler (start_scheduler())
-
-# Exposes a web dashboard at / to view upcoming meetings.
-# http://localhost:8080/
-# → Displays HTML with a list of meetings from the database
-
-# Expose a an API Endpoint 
-#   GET http://localhost:8080/meetings
-
-# main.py
-# └── FastAPI App
-#     ├── Startup
-#     │   ├── init_db()
-#     │   └── start_scheduler()
-#     ├── GET /
-#     │   └── Render HTML via Jinja2 (web/templates/index.html)
-#     └── GET /meetings
-#         └── Return JSON from SQLite: meetings.db
-
-
+import uvicorn
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-import uvicorn
-import sqlite3
 
 from app.db import init_db, get_all_meetings_as_dict
 from scheduler import start_scheduler
 
+from app.db.init_db import init_db
+from app.api.status import router as status_router
+
+
+BASE_DIR = Path(__file__).resolve().parent
+
 app = FastAPI()
-templates = Jinja2Templates(directory="web/templates")
-app.mount("/static", StaticFiles(directory="web/static"), name="static")
+
+# Init DB tables (safe to call on every boot)
+init_db()
+
+
+# Templates & static
+templates = Jinja2Templates(directory=str(BASE_DIR / "web" / "templates"))
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "web" / "static")), name="static")
+
+# Routes
+app.include_router(status_router)
+
 
 @app.on_event("startup")
 def startup():

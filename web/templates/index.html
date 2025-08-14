@@ -1,43 +1,231 @@
+<!--<!DOCTYPE html>-->
+<!--<html>-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <title>Meeting Collector</title>-->
+<!--</head>-->
+<!--<body>-->
+<!--<h1>📅 Collected Meetings</h1>-->
+<!--<table border="1">-->
+<!--    <tr>-->
+<!--        <th>Msg Account</th>-->
+<!--        <th>Msg Folder</th>-->
+<!--        &lt;!&ndash;<th>Msg ID</th>&ndash;&gt;-->
+<!--        <th>Msg Date</th>-->
+<!--        <th>Msg Subject</th>-->
+<!--        <th>Msg Sender</th>-->
+<!--        <th>Msg Attendants</th>-->
+<!--        <th>Meet Platform</th>-->
+<!--        <th>Meet ID</th>-->
+<!--        <th>Meet Attendants</th>-->
+<!--        <th>Meet Date</th>-->
+<!--        <th>Meet Link</th>-->
+<!--    </tr>-->
+<!--    {% for m in meetings %}-->
+<!--    <tr>-->
+<!--        <td>{{ m["msg_account"] }}</td>-->
+<!--        <td>{{ m["msg_folder"] }}</td>-->
+<!--        &lt;!&ndash;<td>{{ m["msg_id"] }}</td>&ndash;&gt;-->
+<!--        <td>{{ m["msg_date"] }}</td>-->
+<!--        <td>{{ m["msg_subject"] }}</td>-->
+<!--        <td>{{ m["msg_sender"] }}</td>-->
+<!--        <td>{{ m["msg_attendants"] }}</td>-->
+<!--        <td>{{ m["meet_platform"] }}</td>-->
+<!--        <td>{{ m["meet_id"] }}</td>-->
+<!--        <td>{{ m["meet_attendants"] }}</td>-->
+<!--        <td>{{ m["meet_date"] }}</td>-->
+<!--        <td><a href="{{ m["meet_link"] }}" target="_blank">Join</a></td>-->
+<!--    </tr>-->
+<!--    {% endfor %}-->
+<!--</table>-->
+
+<!--</body>-->
+<!--</html>-->
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Meeting Collector</title>
+
+    <!-- Tailwind (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FullCalendar (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales-all.global.min.js"></script>
+
+    <style>
+        /* Small style tweaks */
+        .badge {
+            @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+        }
+
+        .badge-zoom {
+            @apply bg-blue-100 text-blue-700;
+        }
+
+        .badge-teams {
+            @apply bg-purple-100 text-purple-700;
+        }
+
+        .badge-google {
+            @apply bg-green-100 text-green-700;
+        }
+
+        /*.scroll-area { max-height: 60vh; overflow: auto; }*/
+    </style>
 </head>
-<body>
-<h1>📅 Collected Meetings</h1>
-<table border="1">
-    <tr>
-        <th>Msg Account</th>
-        <th>Msg Folder</th>
-        <!--<th>Msg ID</th>-->
-        <th>Msg Date</th>
-        <th>Msg Subject</th>
-        <th>Msg Sender</th>
-        <th>Msg Attendants</th>
-        <th>Meet Platform</th>
-        <th>Meet ID</th>
-        <th>Meet Attendants</th>
-        <th>Meet Date</th>
-        <th>Meet Link</th>
-    </tr>
-    {% for m in meetings %}
-    <tr>
-        <td>{{ m["msg_account"] }}</td>
-        <td>{{ m["msg_folder"] }}</td>
-        <!--<td>{{ m["msg_id"] }}</td>-->
-        <td>{{ m["msg_date"] }}</td>
-        <td>{{ m["msg_subject"] }}</td>
-        <td>{{ m["msg_sender"] }}</td>
-        <td>{{ m["msg_attendants"] }}</td>
-        <td>{{ m["meet_platform"] }}</td>
-        <td>{{ m["meet_id"] }}</td>
-        <td>{{ m["meet_attendants"] }}</td>
-        <td>{{ m["meet_date"] }}</td>
-        <td><a href="{{ m["meet_link"] }}" target="_blank">Join</a></td>
-    </tr>
-    {% endfor %}
-</table>
+<body class="min-h-screen grid grid-rows-[auto,1fr] bg-slate-50 text-slate-900">
+<!-- Top bar -->
+<header class="border-b bg-white">
+    <div class="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-3">
+        <h1 class="text-2xl font-semibold">📅 Meeting Collector</h1>
+
+        <!-- keeps counts (events/links/dates) -->
+        <span id="status" class="ml-2 text-sm text-slate-500">ready</span>
+
+        <!-- loader shown when /status says running -->
+        <div id="loader" class="ml-3 hidden items-center gap-2 text-slate-600">
+            <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <span id="loader-text" class="text-sm">collecting…</span>
+        </div>
+
+        <!-- slim progress bar -->
+        <div class="ml-4 flex-1">
+            <div id="progress" class="h-1 bg-slate-200 rounded-full overflow-hidden hidden">
+                <div id="progress-bar" class="h-1 bg-slate-900" style="width:0%"></div>
+            </div>
+        </div>
+
+        <div class="ml-auto flex items-center gap-2">
+            <button id="btn-refresh" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">Refresh</button>
+            <a id="btn-export" class="rounded-xl bg-white border px-3 py-2 text-sm hover:bg-slate-100" href="#">Export.ics (visible)</a>
+        </div>
+    </div>
+</header>
+
+<!--  Left Side Panel  -->
+<main class="w-full p-4 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 overflow-hidden">
+
+    <!-- Filters -->
+    <aside class="lg:col-span-1 bg-white rounded-2xl shadow p-4 h-full overflow-auto">
+        <h2 class="text-sm font-semibold text-slate-700 tracking-wide">Filters</h2>
+        <div class="mt-4 space-y-4">
+            <div>
+                <label class="block text-xs text-slate-500">Search (subject, sender, attendees)</label>
+                <input id="q" type="search" placeholder="Type to filter…"
+                       class="mt-1 w-full rounded-xl border px-3 py-2 text-sm"/>
+            </div>
+
+            <div>
+                <label class="block text-xs text-slate-500">Platforms</label>
+                <div class="mt-2 flex flex-wrap gap-2 text-sm">
+                    <label class="inline-flex items-center gap-1"><input type="checkbox" class="platform" value="zoom"
+                                                                         checked/> <span
+                            class="badge badge-zoom">Zoom</span></label>
+                    <label class="inline-flex items-center gap-1"><input type="checkbox" class="platform" value="teams"
+                                                                         checked/> <span
+                            class="badge badge-teams">Teams</span></label>
+                    <label class="inline-flex items-center gap-1"><input type="checkbox" class="platform" value="google"
+                                                                         checked/> <span class="badge badge-google">Google</span></label>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs text-slate-500">From</label>
+                    <input id="from" type="date" class="mt-1 w-full rounded-xl border px-3 py-2 text-sm"/>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-500">To</label>
+                    <input id="to" type="date" class="mt-1 w-full rounded-xl border px-3 py-2 text-sm"/>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <button id="btn-clear" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Clear filters
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <h3 class="text-xs font-semibold text-slate-500">Legend</h3>
+            <div class="mt-2 flex flex-col gap-2 text-sm">
+                <div><span class="badge badge-zoom">Zoom</span> <span class="text-slate-500">zoom.us</span></div>
+                <div><span class="badge badge-teams">Teams</span> <span
+                        class="text-slate-500">teams.microsoft.com</span></div>
+                <div><span class="badge badge-google">Google Meet</span> <span
+                        class="text-slate-500">meet.google.com</span></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main content -->
+    <!--      <section class="lg:col-span-3 space-y-4">-->
+    <section class="lg:col-span-1 lg:col-start-2 flex flex-col min-h-0 gap-4">
+
+        <!-- Tabs -->
+        <div class="rounded-2xl bg-white p-2 shadow flex gap-2">
+            <button data-tab="calendar" class="tab-btn active rounded-xl px-4 py-2 text-sm bg-slate-900 text-white">
+                Calendar
+            </button>
+            <button data-tab="table" class="tab-btn rounded-xl px-4 py-2 text-sm hover:bg-slate-50">Table</button>
+        </div>
+
+        <!-- Calendar -->
+        <div id="calendar-card" class="rounded-2xl bg-white p-4 shadow flex-1 flex flex-col min-h-0">
+            <div id="calendar" class="flex-1 min-h-0"></div>
+        </div>
+
+        <!-- Table -->
+        <!--<div id="table-card" class="hidden rounded-2xl bg-white p-4 shadow">
+          <div class="scroll-area">-->
+        <div id="table-card" class="hidden rounded-2xl bg-white p-4 shadow flex-1 flex flex-col min-h-0">
+            <div class="flex-1 min-h-0 overflow-auto">
+                <table class="w-full text-sm">
+                    <thead class="sticky top-0 bg-white">
+                    <tr class="text-left border-b">
+                        <th class="py-2 pr-2">Date</th>
+                        <th class="py-2 pr-2">Subject</th>
+                        <th class="py-2 pr-2">Platform</th>
+                        <th class="py-2 pr-2">From</th>
+                        <th class="py-2 pr-2">Attendees</th>
+                        <th class="py-2 pr-2">Join</th>
+                    </tr>
+                    </thead>
+                    <tbody id="rows"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <label class="mt-2 inline-flex items-center gap-2 text-sm">
+            <input id="showNoDate" type="checkbox"/>
+            <span>Include messages without date (table only)</span>
+        </label>
+
+    </section>
+</main>
+
+<!-- Drawer (event details) -->
+<div id="drawer" class="hidden fixed inset-0 z-50">
+    <div class="absolute inset-0 bg-black/30" data-close></div>
+    <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-lg p-6 overflow-auto">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Meeting details</h3>
+            <button data-close class="rounded-full border px-2 py-1">✕</button>
+        </div>
+        <div id="drawer-body" class="mt-4 space-y-2 text-sm"></div>
+    </div>
+</div>
+
+<!--<script src="../static/main.js"></script>-->
+<script defer src="{{ url_for('static', path='main.js') }}"></script>
 
 </body>
 </html>

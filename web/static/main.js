@@ -1,0 +1,377 @@
+(() => {
+    'use strict';
+
+    // ---------- Small helpers ----------
+    const $ = (sel, root = document) => root.querySelector(sel);
+    const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+    function onReady(cb) {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', cb, { once: true });
+        } else {
+            cb();
+        }
+    }
+
+    function debounce(fn, wait = 150) {
+        let t;
+        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+    }
+
+    /*function platformBadge(p) {
+        if (p === 'zoom') return '<span class="badge badge-zoom">Zoom</span>';
+        if (p === 'teams') return '<span class="badge badge-teams">Teams</span>';
+        if (p === 'google') return '<span class="badge badge-google">Google</span>';
+        return '<span class="badge bg-slate-100 text-slate-700">Other</span>';
+    }*/
+    function platformBadge(p) {
+        const base = "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium";
+        const map  = { zoom: "bg-blue-100 text-blue-700", teams: "bg-purple-100 text-purple-700", google: "bg-green-100 text-green-700", other: "bg-slate-100 text-slate-700"};
+        const k = (p || 'other').toLowerCase();
+        const label = k === 'google' ? 'Google' : k.charAt(0).toUpperCase() + k.slice(1);
+        return `<span class="${base} ${map[k] || map.other}">${label}</span>`;
+    }
+
+    // Incoming format: RFC 2822-like e.g. "Fri, 18 Jul 2025 11:00:00 +0300"
+    function toISO(dtStr) {
+        const d = new Date(dtStr);
+        return isNaN(d) ? null : d.toISOString();
+    }
+
+    function formatLocal(dtStr) {
+        const d = new Date(dtStr);
+        if (isNaN(d)) return '';
+        return d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    function googleCalendarUrl(ev) {
+        // Build a Google Calendar template link (defaults to 60min duration if no end)
+        const start = new Date(ev.start);
+        const end = ev.extendedProps?.end ? new Date(ev.extendedProps.end) : new Date(start.getTime() + 60 * 60000);
+        const fmt = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+        const text = encodeURIComponent(ev.title || 'Meeting');
+        const details = encodeURIComponent((ev.extendedProps?.link || '') + '\n' + (ev.extendedProps?.subject || ''));
+        const location = encodeURIComponent(ev.extendedProps?.platform || '');
+        return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(start)}/${fmt(end)}&details=${details}&location=${location}`;
+    }
+
+    function downloadICS(events) {
+        const dtstamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+        const lines = [
+            'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Meeting Collector//EN'
+        ];
+        for (const ev of events) {
+            const start = new Date(ev.start);
+            const end = ev.extendedProps?.end ? new Date(ev.extendedProps.end) : new Date(start.getTime() + 60 * 60000);
+            const fmt = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+            lines.push(
+                'BEGIN:VEVENT',
+                `UID:${ev.id || crypto.randomUUID()}@meeting-collector`,
+                `DTSTAMP:${dtstamp}`,
+                `DTSTART:${fmt(start)}`,
+                `DTEND:${fmt(end)}`,
+                `SUMMARY:${(ev.title || '').replace(/\n/g, ' ')}`,
+                `DESCRIPTION:${(ev.extendedProps?.link || '')}`,
+                'END:VEVENT'
+            );
+        }
+        lines.push('END:VCALENDAR');
+        const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'meetings.ics'; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+
+    // ---------- Data state ----------
+    let ALL = [];      // raw meetings from API
+    let EVENTS = [];   // transformed events with date & link
+    let calendar = null; // FullCalendar instance
+
+    function deriveTitle(m) {
+        const subject = m.msg_subject?.trim();
+        if (subject) return subject;
+        return (m.meet_platform || 'meeting').toUpperCase() + ' ' + (m.meet_id || '');
+    }
+
+    function transform(meetings) {
+        return meetings
+            .filter(m => !!m.meet_link && !!m.meet_date)
+            .map(m => ({
+                id: m.meet_id,
+                title: deriveTitle(m),
+                start: toISO(m.meet_date),
+                url: m.meet_link,
+                extendedProps: {
+                    platform: m.meet_platform,
+                    subject: m.msg_subject,
+                    sender: m.msg_sender,
+                    attendees: m.meet_attendants || m.msg_attendants,
+                    account: m.msg_account,
+                    folder: m.msg_folder,
+                    link: m.meet_link,
+                    rawDate: m.meet_date,
+                    end: m.meet_end_date || null // optional future field from API
+                }
+            }))
+            .filter(e => !!e.start);
+    }
+
+    function rowsFromAll(meetings) {
+        return meetings.map(m => ({
+            id: m.meet_id,
+            title: deriveTitle(m),
+            start: m.meet_date ? toISO(m.meet_date) : null,
+            url: m.meet_link,
+            extendedProps: {
+                platform: m.meet_platform,
+                subject: m.msg_subject,
+                sender: m.msg_sender,
+                attendees: m.meet_attendants || m.msg_attendants,
+                account: m.msg_account,
+                folder: m.msg_folder,
+                link: m.meet_link,
+                rawDate: m.meet_date,
+                end: m.meet_end_date || null
+            }
+        }));
+    }
+
+    function applyFilters(list) {
+        const qEl = $('#q');
+        const fromEl = $('#from');
+        const toEl = $('#to');
+        const q = qEl ? qEl.value.trim().toLowerCase() : '';
+        const plats = $$('.platform').filter(x => x.checked).map(x => x.value);
+        const from = fromEl && fromEl.value ? new Date(fromEl.value) : null;
+        const to = toEl && toEl.value ? new Date(toEl.value + 'T23:59:59') : null;
+
+        return list.filter(ev => {
+            // platform
+            if (plats.length && !plats.includes((ev.extendedProps.platform || '').toLowerCase())) return false;
+            // date range
+            const d = ev.start ? new Date(ev.start) : null;
+            if (from && d && d < from) return false;
+            if (to && d && d > to) return false;
+            // query
+            if (q) {
+                const hay = `${ev.title} ${(ev.extendedProps.subject || '')} ${(ev.extendedProps.sender || '')} ${(ev.extendedProps.attendees || '')}`.toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+            return true;
+        });
+    }
+
+    async function fetchMeetings() {
+        const status = $('#status');
+        if (status) status.textContent = 'loading…';
+        try {
+            const res = await fetch('/meetings');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            ALL = await res.json();
+            EVENTS = transform(ALL);
+        } catch (err) {
+            console.error(err);
+            ALL = [];
+            EVENTS = [];
+        } finally {
+            updateStatus();
+            render(); // always render even if 0 events
+        }
+    }
+
+    function updateStatus() {
+        const status = $('#status');
+        if (!status) return;
+        const total = ALL.length;
+        const withLink = ALL.filter(m => m.meet_link).length;
+        const withDate = ALL.filter(m => m.meet_date).length;
+        const withBoth = EVENTS.length;
+        status.textContent = `events ${withBoth} • links ${withLink}/${total} • dates ${withDate}/${total}`;
+    }
+
+    function updateStatusCounts() {
+        const status = $('#status');
+        if (!status) return;
+        const total = ALL.length;
+        const withLink = ALL.filter(m => m.meet_link).length;
+        const withDate = ALL.filter(m => m.meet_date).length;
+        const withBoth = EVENTS.length;
+        status.textContent = `events ${withBoth} • links ${withLink}/${total} • dates ${withDate}/${total}`;
+    }
+
+    // ---- NEW: poll /status and toggle loader/progress ----
+    async function pollStatus() {
+        try {
+            const res = await fetch('/status');
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const s = await res.json();
+            const loader = $('#loader');
+            const bar = $('#progress');
+            const fill = $('#progress-bar');
+            const text = $('#loader-text');
+            const st = s?.collector?.status || 'idle';
+            const msg = s?.collector?.message || '';
+            const prg = Number(s?.collector?.progress ?? 0);
+
+            const running = st === 'running';
+            if (loader) loader.classList.toggle('hidden', !running);
+            if (bar) bar.classList.toggle('hidden', !running);
+            if (fill) fill.style.width = `${Math.max(0, Math.min(100, prg))}%`;
+            if (text) text.textContent = running ? (msg || 'collecting…') : 'idle';
+        } catch (e) {
+            // silent; keep previous UI
+            console.debug('status poll failed');
+        }
+    }
+
+    function startStatusPolling() {
+        pollStatus();
+        if (statusTimer) clearInterval(statusTimer);
+        statusTimer = setInterval(pollStatus, 4000);
+    }
+
+    function render() {
+        const calEl = $('#calendar');
+        if (!calEl) return;
+
+        const calEvents = applyFilters(EVENTS);
+
+        // Create or update calendar
+        if (!calendar) {
+            calendar = new FullCalendar.Calendar(calEl, {
+                timeZone: 'Europe/Athens',
+                locale: 'el',
+                height: '100%',
+                expandRows: true,
+                initialView: 'dayGridMonth',
+                headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' },
+                events: calEvents,
+                eventClick(info) {
+                    info.jsEvent?.preventDefault?.();
+                    openDrawer(info.event);
+                },
+                eventContent(arg) {
+                    const p = (arg.event.extendedProps.platform || '').toLowerCase();
+                    const badge = p === 'zoom' ? 'badge-zoom' : p === 'teams' ? 'badge-teams' : p === 'google' ? 'badge-google' : 'bg-slate-100 text-slate-700';
+                    const inner = document.createElement('div');
+                    inner.innerHTML = `<div class="truncate">${arg.event.title}</div><div class="mt-0.5 ${badge} badge">${p || 'other'}</div>`;
+                    return { domNodes: [inner] };
+                }
+            });
+            calendar.render();
+
+            // Keep calendar sized correctly
+            if ('ResizeObserver' in window) {
+                const ro = new ResizeObserver(() => { if (calendar) calendar.updateSize(); });
+                ro.observe(calEl);
+            } else {
+                window.addEventListener('resize', debounce(() => { if (calendar) calendar.updateSize(); }), { passive: true });
+            }
+
+            // Optional: expose for debugging
+            window.calendar = calendar;
+        } else {
+            calendar.removeAllEvents();
+            calendar.addEventSource(calEvents);
+        }
+
+        // Table
+        const tbody = $('#rows');
+        if (!tbody) return;
+        const showNoDate = $('#showNoDate')?.checked;
+        const tableSource = showNoDate ? rowsFromAll(ALL) : EVENTS;
+        const filteredTable = applyFilters(tableSource);
+
+        tbody.innerHTML = '';
+        for (const ev of filteredTable.sort((a, b) => (new Date(a.start || 0)) - (new Date(b.start || 0)))) {
+            const when = ev.start ? formatLocal(ev.start) : '<span class="text-slate-400 italic">no date</span>';
+            const tr = document.createElement('tr');
+            tr.className = 'border-b hover:bg-slate-50';
+            tr.innerHTML = `
+        <td class="py-2 pr-2 whitespace-nowrap">${when}</td>
+        <td class="py-2 pr-2">${ev.title}</td>
+        <td class="py-2 pr-2">${platformBadge((ev.extendedProps.platform || '').toLowerCase())}</td>
+        <td class="py-2 pr-2">${ev.extendedProps.sender || ''}</td>
+        <td class="py-2 pr-2">${ev.extendedProps.attendees || ''}</td>
+        <td class="py-2 pr-2">${ev.extendedProps.link ? `<a class="text-blue-600 underline" href="${ev.extendedProps.link}" target="_blank">Join</a>` : ''}</td>
+      `;
+            tr.addEventListener('click', () => openDrawer({ ...ev, extendedProps: ev.extendedProps }));
+            tbody.appendChild(tr);
+        }
+    }
+
+    function openDrawer(ev) {
+        const drawer = $('#drawer');
+        const body = $('#drawer-body');
+        if (!drawer || !body) return;
+
+        body.innerHTML = `
+      <div><span class="text-slate-500">Subject</span><div class="font-medium">${ev.extendedProps.subject || ev.title || ''}</div></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><span class="text-slate-500">Start</span><div class="font-medium">${ev.start ? formatLocal(ev.start) : '-'}</div></div>
+        <div><span class="text-slate-500">Platform</span><div class="font-medium">${platformBadge((ev.extendedProps.platform || '').toLowerCase())}</div></div>
+      </div>
+      <div><span class="text-slate-500">From</span><div class="font-medium">${ev.extendedProps.sender || ''}</div></div>
+      <div><span class="text-slate-500">Attendees</span><div class="font-medium whitespace-pre-wrap">${ev.extendedProps.attendees || ''}</div></div>
+      <div><span class="text-slate-500">Account / Folder</span><div class="font-medium">${ev.extendedProps.account || ''} · ${ev.extendedProps.folder || ''}</div></div>
+      <div class="pt-2 flex gap-2">
+        ${ev.extendedProps.link ? `<a href="${ev.extendedProps.link}" target="_blank" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">Join</a>` : ''}
+        ${ev.start ? `<a href="${googleCalendarUrl(ev)}" target="_blank" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Add to Google Calendar</a>` : ''}
+      </div>
+    `;
+
+        // Close buttons / backdrop
+        $$('#drawer [data-close]').forEach(el => el.addEventListener('click', () => drawer.classList.add('hidden')));
+        drawer.classList.remove('hidden');
+    }
+
+    // ---------- Boot ----------
+    function init() {
+
+        // Start polling collector status immediately
+        startStatusPolling();
+
+        // Fetch data immediately
+        fetchMeetings();
+
+        // Tabs
+        $$('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+            $$('.tab-btn').forEach(b => b.classList.remove('bg-slate-900', 'text-white', 'active'));
+            btn.classList.add('bg-slate-900', 'text-white', 'active');
+            const tab = btn.getAttribute('data-tab');
+            $('#calendar-card').classList.toggle('hidden', tab !== 'calendar');
+            $('#table-card').classList.toggle('hidden', tab !== 'table');
+        }));
+
+        // Filters
+        const q = $('#q'); if (q) q.addEventListener('input', render);
+        $$('.platform').forEach(cb => cb.addEventListener('change', render));
+        const from = $('#from'); if (from) from.addEventListener('change', render);
+        const to = $('#to'); if (to) to.addEventListener('change', render);
+        const clear = $('#btn-clear'); if (clear) clear.addEventListener('click', () => {
+            if (q) q.value = '';
+            $$('.platform').forEach(cb => cb.checked = true);
+            if (from) from.value = '';
+            if (to) to.value = '';
+            render();
+        });
+
+        // Refresh
+        const refresh = $('#btn-refresh'); if (refresh) refresh.addEventListener('click', fetchMeetings);
+
+        // Export visible
+        const exportBtn = $('#btn-export'); if (exportBtn) exportBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const filtered = applyFilters(EVENTS);
+            downloadICS(filtered);
+        });
+
+        // Include messages without date (table only)
+        const noDate = $('#showNoDate'); if (noDate) noDate.addEventListener('change', render, { passive: true });
+    }
+
+    onReady(() => {
+        init();
+    });
+})();

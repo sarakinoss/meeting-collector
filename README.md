@@ -89,45 +89,17 @@ meeting-collector/
 
 ### Run
 uvicorn main:app --reload --host 0.0.0.0 --port 8080
-
-
 Λύση 1: Διαγραφή και επαναδημιουργία του venv
 Αν δεν έχεις σημαντικά πακέτα εγκατεστημένα:
-
 Διέγραψε τον φάκελο venv:
-
-bash
-Copy
-Edit
-rm -rf venv
 Δημιούργησε νέο virtual environment:
-
-bash
-Copy
-Edit
 python3 -m venv venv
 Ενεργοποίησε το venv:
-
-bash
-Copy
-Edit
 source venv/bin/activate
 Εγκατέστησε ξανά τα dependencies:
 Αν έχεις requirements.txt:
-
-bash
-Copy
-Edit
 pip install -r requirements.txt
 Αν όχι:
-
-bash
-Copy
-Edit
 pip install fastapi uvicorn
 Τρέξε ξανά:
-
-bash
-Copy
-Edit
 uvicorn main:app --reload --host 0.0.0.0 --port 8080
