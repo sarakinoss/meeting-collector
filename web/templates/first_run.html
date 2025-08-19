@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Πρώτη Εκκίνηση — Δημιουργία Admin{% endblock %}
+{% block content %}
+  <div class="auth-card">
+    <h1>Πρώτη Εκκίνηση</h1>
+    <p class="muted">Δεν υπάρχουν χρήστες. Δημιούργησε τον αρχικό διαχειριστή.</p>
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    <form method="post" class="form">
+      <label>Όνομα χρήστη<br><input name="username" required></label>
+      <label>Email<br><input name="email" type="email" required></label>
+      <label>Κωδικός<br><input name="password" type="password" required></label>
+      <button class="btn btn-primary" type="submit">Δημιουργία Admin</button>
+    </form>
+  </div>
+{% endblock %}

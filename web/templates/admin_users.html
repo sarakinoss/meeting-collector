@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Διαχείριση Χρηστών{% endblock %}
+{% block content %}
+  <h1>Χρήστες</h1>
+
+  <section class="card">
+    <h2>Νέος χρήστης</h2>
+    <form method="post" action="/admin/users" class="grid-form">
+      <label>Username<br><input name="username" required></label>
+      <label>Email<br><input name="email" type="email"></label>
+      <label>Password<br><input name="password" type="password" required></label>
+      <label>Admin;<br>
+        <select name="is_admin"><option value="false">Όχι</option><option value="true">Ναι</option></select>
+      </label>
+      <div style="align-self:end"><button class="btn btn-primary">Προσθήκη</button></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Λίστα</h2>
+    <table class="table">
+      <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Admin</th></tr></thead>
+      <tbody>
+      {% for u in users %}
+        <tr>
+          <td>{{ u.id }}</td>
+          <td>{{ u.username }}</td>
+          <td>{{ u.email or "" }}</td>
+          <td>{{ "✓" if u.is_admin else "" }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

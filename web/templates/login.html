@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Σύνδεση · Meeting Collector{% endblock %}
+{% block content %}
+<div class="auth-card">
+    <h1>Σύνδεση</h1>
+    {% if error %}
+    <div class="alert">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/login" class="form">
+        <label>Όνομα χρήστη<br><input name="username" required/></label>
+        <label>Κωδικός<br><input type="password" name="password" required/></label>
+        <button class="btn btn-primary" type="submit">Είσοδος</button>
+    </form>
+
+
+    <div class="divider"><span>ή</span></div>
+
+
+    <div class="sso-buttons">
+        <button class="btn btn-light" onclick="location.href='/auth/sso/google'">Σύνδεση με Google</button>
+        <button class="btn btn-light" onclick="location.href='/auth/sso/microsoft'">Σύνδεση με Microsoft</button>
+    </div>
+</div>
+{% endblock %}

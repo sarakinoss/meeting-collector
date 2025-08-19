@@ -7,7 +7,7 @@
 
     function onReady(cb) {
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', cb, { once: true });
+            document.addEventListener('DOMContentLoaded', cb, {once: true});
         } else {
             cb();
         }
@@ -15,7 +15,10 @@
 
     function debounce(fn, wait = 150) {
         let t;
-        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+        return (...args) => {
+            clearTimeout(t);
+            t = setTimeout(() => fn(...args), wait);
+        };
     }
 
     /*function platformBadge(p) {
@@ -26,7 +29,12 @@
     }*/
     function platformBadge(p) {
         const base = "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium";
-        const map  = { zoom: "bg-blue-100 text-blue-700", teams: "bg-purple-100 text-purple-700", google: "bg-green-100 text-green-700", other: "bg-slate-100 text-slate-700"};
+        const map = {
+            zoom: "bg-blue-100 text-blue-700",
+            teams: "bg-purple-100 text-purple-700",
+            google: "bg-green-100 text-green-700",
+            other: "bg-slate-100 text-slate-700"
+        };
         const k = (p || 'other').toLowerCase();
         const label = k === 'google' ? 'Google' : k.charAt(0).toUpperCase() + k.slice(1);
         return `<span class="${base} ${map[k] || map.other}">${label}</span>`;
@@ -41,7 +49,7 @@
     function formatLocal(dtStr) {
         const d = new Date(dtStr);
         if (isNaN(d)) return '';
-        return d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+        return d.toLocaleString([], {dateStyle: 'medium', timeStyle: 'short'});
     }
 
     function googleCalendarUrl(ev) {
@@ -76,10 +84,12 @@
             );
         }
         lines.push('END:VCALENDAR');
-        const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
+        const blob = new Blob([lines.join('\r\n')], {type: 'text/calendar'});
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = 'meetings.ics'; a.click();
+        a.href = url;
+        a.download = 'meetings.ics';
+        a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
     }
 
@@ -112,7 +122,8 @@
                     folder: m.msg_folder,
                     link: m.meet_link,
                     rawDate: m.meet_date,
-                    end: m.meet_end_date || null // optional future field from API
+                    end: m.meet_end_date || null, // optional future field from API
+                    msg_id: m.msg_id || null
                 }
             }))
             .filter(e => !!e.start);
@@ -133,7 +144,8 @@
                 folder: m.msg_folder,
                 link: m.meet_link,
                 rawDate: m.meet_date,
-                end: m.meet_end_date || null
+                end: m.meet_end_date || null,
+                msg_id: m.msg_id || null
             }
         }));
     }
@@ -229,7 +241,7 @@
     function startStatusPolling() {
         pollStatus();
         if (statusTimer) clearInterval(statusTimer);
-        statusTimer = setInterval(pollStatus, 4000);
+        statusTimer = setInterval(pollStatus, 10000);
     }
 
     function render() {
@@ -246,7 +258,11 @@
                 height: '100%',
                 expandRows: true,
                 initialView: 'dayGridMonth',
-                headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek' },
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+                },
                 events: calEvents,
                 eventClick(info) {
                     info.jsEvent?.preventDefault?.();
@@ -257,20 +273,28 @@
                     const inner = document.createElement('div');
                     // const badge = p === 'zoom' ? 'badge-zoom' : p === 'teams' ? 'badge-teams' : p === 'google' ? 'badge-google' : 'bg-slate-100 text-slate-700';
                     // inner.innerHTML = `<div class="truncate">${arg.event.title}</div><div class="mt-0.5 ${badge} badge">${p || 'other'}</div>`;
-                    const map = { zoom: 'bg-blue-100 text-blue-700', teams: 'bg-purple-100 text-purple-700', google: 'bg-green-100 text-green-700' };
+                    const map = {
+                        zoom: 'bg-blue-100 text-blue-700',
+                        teams: 'bg-purple-100 text-purple-700',
+                        google: 'bg-green-100 text-green-700'
+                    };
                     const badge = map[p] || 'bg-slate-100 text-slate-700';
                     inner.innerHTML = `<div class="truncate">${arg.event.title}</div><div class="mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badge}">${p || 'other'}</div>`;
-                    return { domNodes: [inner] };
+                    return {domNodes: [inner]};
                 }
             });
             calendar.render();
 
             // Keep calendar sized correctly
             if ('ResizeObserver' in window) {
-                const ro = new ResizeObserver(() => { if (calendar) calendar.updateSize(); });
+                const ro = new ResizeObserver(() => {
+                    if (calendar) calendar.updateSize();
+                });
                 ro.observe(calEl);
             } else {
-                window.addEventListener('resize', debounce(() => { if (calendar) calendar.updateSize(); }), { passive: true });
+                window.addEventListener('resize', debounce(() => {
+                    if (calendar) calendar.updateSize();
+                }), {passive: true});
             }
 
             // Optional: expose for debugging
@@ -300,7 +324,7 @@
         <td class="py-2 pr-2">${ev.extendedProps.attendees || ''}</td>
         <td class="py-2 pr-2">${ev.extendedProps.link ? `<a class="text-blue-600 underline" href="${ev.extendedProps.link}" target="_blank">Join</a>` : ''}</td>
       `;
-            tr.addEventListener('click', () => openDrawer({ ...ev, extendedProps: ev.extendedProps }));
+            tr.addEventListener('click', () => openDrawer({...ev, extendedProps: ev.extendedProps}));
             tbody.appendChild(tr);
         }
     }
@@ -322,6 +346,8 @@
       <div class="pt-2 flex gap-2">
         ${ev.extendedProps.link ? `<a href="${ev.extendedProps.link}" target="_blank" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">Join</a>` : ''}
         ${ev.start ? `<a href="${googleCalendarUrl(ev)}" target="_blank" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Add to Google Calendar</a>` : ''}
+        ${ev.extendedProps.msg_id ? `<a href="/emails/by-mid/${encodeURIComponent(ev.extendedProps.msg_id)}/preview" target="_blank" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Preview email</a>` : ''}
+        ${ev.extendedProps.msg_id ? `<a href="/emails/by-mid/${encodeURIComponent(ev.extendedProps.msg_id)}/download" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Download .eml</a>` : ''}
       </div>
     `;
 
@@ -349,11 +375,15 @@
         }));
 
         // Filters
-        const q = $('#q'); if (q) q.addEventListener('input', render);
+        const q = $('#q');
+        if (q) q.addEventListener('input', render);
         $$('.platform').forEach(cb => cb.addEventListener('change', render));
-        const from = $('#from'); if (from) from.addEventListener('change', render);
-        const to = $('#to'); if (to) to.addEventListener('change', render);
-        const clear = $('#btn-clear'); if (clear) clear.addEventListener('click', () => {
+        const from = $('#from');
+        if (from) from.addEventListener('change', render);
+        const to = $('#to');
+        if (to) to.addEventListener('change', render);
+        const clear = $('#btn-clear');
+        if (clear) clear.addEventListener('click', () => {
             if (q) q.value = '';
             $$('.platform').forEach(cb => cb.checked = true);
             if (from) from.value = '';
@@ -362,20 +392,67 @@
         });
 
         // Refresh
-        const refresh = $('#btn-refresh'); if (refresh) refresh.addEventListener('click', fetchMeetings);
+        const refresh = $('#btn-refresh');
+        if (refresh) refresh.addEventListener('click', fetchMeetings);
 
         // Export visible
-        const exportBtn = $('#btn-export'); if (exportBtn) exportBtn.addEventListener('click', (e) => {
+        const exportBtn = $('#btn-export');
+        if (exportBtn) exportBtn.addEventListener('click', (e) => {
             e.preventDefault();
             const filtered = applyFilters(EVENTS);
             downloadICS(filtered);
         });
 
         // Include messages without date (table only)
-        const noDate = $('#showNoDate'); if (noDate) noDate.addEventListener('change', render, { passive: true });
+        const noDate = $('#showNoDate');
+        if (noDate) noDate.addEventListener('change', render, {passive: true});
     }
 
     onReady(() => {
+        const btn = document.getElementById('btnRunFullParse');
+        if (!btn) return;
+        btn.addEventListener('click', async () => {
+            e.preventDefault();
+            if (!confirm('Run full parse for all accounts?')) return;
+            try {
+                const res = await fetch('/full-parse', {method: 'POST'});
+                alert(res.ok ? 'Full parse started.' : 'Error starting full parse');
+            } catch (e) {
+                alert('Error starting full parse');
+            }
+        });
+
+        // Handle account form submit
+        const form = document.getElementById('formAddAccount');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const data = Object.fromEntries(new FormData(form).entries());
+                // cast αριθμούς/booleans
+                data.imap_port = parseInt(data.imap_port || "993");
+                data.imap_ssl = true; // μπορείς να βάλεις checkbox αν θες
+                data.can_parse = true;
+                data.enabled = true;
+
+                try {
+                    const res = await fetch('/accounts', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(data)
+                    });
+                    if (res.ok) {
+                        alert('Account saved!');
+                        form.reset();
+                    } else {
+                        alert('Error: ' + res.status);
+                    }
+                } catch (err) {
+                    alert('Request failed: ' + err);
+                }
+            });
+        }
+
+
         init();
     });
 })();

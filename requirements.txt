@@ -55,6 +55,8 @@ schedule>=1.2.1
 
 sqlalchemy
 
+psycopg[binary] #"Python driver για SQLAlchemy 2.x
+
 # 🔍 Quick Comparison:
 # -------------------------------
 # | Feature / Aspect     | `apscheduler`                                 | `schedule`                                         |

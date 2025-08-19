@@ -5,6 +5,49 @@ from datetime import datetime, timezone
 import enum
 
 Base = declarative_base()
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    email: Mapped[str | None] = mapped_column(String(128), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(Text)
+    sso_provider: Mapped[str | None] = mapped_column(String(32))
+    sso_subject: Mapped[str | None] = mapped_column(String(128))
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+class MailAccount(Base):
+    __tablename__ = "mail_accounts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    display_name: Mapped[str | None] = mapped_column(String(128))
+    email: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+
+    # IMAP (parsing)
+    imap_host: Mapped[str | None] = mapped_column(String(255))
+    imap_port: Mapped[int | None] = mapped_column(Integer, default=993)
+    imap_ssl: Mapped[bool] = mapped_column(Boolean, default=True)
+    imap_user: Mapped[str | None] = mapped_column(String(128))
+    imap_password_enc: Mapped[str | None] = mapped_column(Text)
+
+    # SMTP (confirmations)
+    smtp_host: Mapped[str | None] = mapped_column(String(255))
+    smtp_port: Mapped[int | None] = mapped_column(Integer, default=465)
+    smtp_ssl: Mapped[bool] = mapped_column(Boolean, default=True)
+    smtp_user: Mapped[str | None] = mapped_column(String(128))
+    smtp_password_enc: Mapped[str | None] = mapped_column(Text)
+
+    # Flags / ownership
+    can_parse: Mapped[bool] = mapped_column(Boolean, default=True)
+    can_send: Mapped[bool] = mapped_column(Boolean, default=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    owner: Mapped[str | None] = mapped_column(String(128))  # optional, for future SSO mapping
+
+    last_full_parse_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_incremental_parse_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 class JobName(str, enum.Enum):
     collector = "collector"

@@ -10,7 +10,8 @@
 #     └── insert_meetings() → app/db.py → into `meetings.db`
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from email_parser import extract_meetings
+
+from email_parser import extract_meetings_all_accounts
 from app.db.crud import store_meetings_to_db
 
 # Initializes the background scheduler (using APScheduler) and:
@@ -21,7 +22,10 @@ def start_scheduler():
     # Create a background scheduler instance (non-blocking, safe for web apps)
     scheduler = BackgroundScheduler()
     #Fetch meetings on service start.
-    store_meetings_to_db(extract_meetings())
+    # store_meetings_to_db(extract_meetings())
+
+    meetings_by_id = extract_meetings_all_accounts()
+    store_meetings_to_db(meetings_by_id)
     
      # Schedule a recurring task to fetch and store meetings every 5 minutes
     # scheduler.add_job(

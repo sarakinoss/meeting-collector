@@ -164,6 +164,7 @@
                         class="text-slate-500">meet.google.com</span></div>
             </div>
         </div>
+
     </aside>
 
     <!-- Main content -->
@@ -209,7 +210,45 @@
             <span>Include messages without date (table only)</span>
         </label>
 
+        <button id="btnRunFullParse">Run Full Parse</button>
+
+
+
     </section>
+
+    <section id="account-form" class="p-4 border rounded mb-4">
+  <h2 class="font-bold mb-2">Add IMAP Account</h2>
+  <form id="formAddAccount">
+    <div class="mb-2">
+      <label>Email</label>
+      <input name="email" type="email" required class="border p-1 w-full"/>
+    </div>
+    <div class="mb-2">
+      <label>Display Name</label>
+      <input name="display_name" type="text" class="border p-1 w-full"/>
+    </div>
+    <div class="mb-2">
+      <label>IMAP Host</label>
+      <input name="imap_host" required class="border p-1 w-full"/>
+    </div>
+    <div class="mb-2">
+      <label>IMAP Port</label>
+      <input name="imap_port" type="number" value="993" class="border p-1 w-full"/>
+    </div>
+    <div class="mb-2">
+      <label>IMAP User</label>
+      <input name="imap_user" class="border p-1 w-full"/>
+    </div>
+    <div class="mb-2">
+      <label>Password</label>
+      <input name="imap_password" type="password" required class="border p-1 w-full"/>
+    </div>
+    <button type="submit" class="bg-slate-900 text-white px-3 py-1 rounded">
+      Save Account
+    </button>
+  </form>
+</section>
+
 </main>
 
 <!-- Drawer (event details) -->
