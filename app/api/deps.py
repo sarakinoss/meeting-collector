@@ -20,6 +20,6 @@ async def require_user(user: User | None = Depends(get_current_user)) -> User:
 async def require_admin(user: User | None = Depends(get_current_user)) -> User:
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    if not getattr(user, "is_admin", False):
+    if not user.is_admin:
         raise HTTPException(status_code=403, detail="Admins only")
     return user

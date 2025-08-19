@@ -1,0 +1,73 @@
+/* Small style tweaks */
+.badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+}
+
+.badge-zoom {
+    @apply bg-blue-100 text-blue-700;
+}
+
+.badge-teams {
+    @apply bg-purple-100 text-purple-700;
+}
+
+.badge-google {
+    @apply bg-green-100 text-green-700;
+}
+
+/*.scroll-area { max-height: 60vh; overflow: auto; }*/
+
+/* Avatar dropdown (CSS-only με <details>) */
+.user-menu {
+    position: relative;
+    display: inline-block
+}
+
+.user-menu > summary {
+    list-style: none;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    border: 1px solid var(--border, #24334d);
+    background: var(--card, #121824);
+    color: var(--fg, #e6ebf2)
+}
+
+.user-menu > summary::-webkit-details-marker {
+    display: none
+}
+
+.user-menu[open] > .menu {
+    display: block
+}
+
+.user-menu > .menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    min-width: 180px;
+    display: none;
+    background: var(--card, #121824);
+    border: 1px solid var(--border, #24334d);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    z-index: 1000
+}
+
+.user-menu .menu a {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--fg, #e6ebf2)
+}
+
+.user-menu .menu a:hover {
+    background: #1b2433
+}

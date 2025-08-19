@@ -93,13 +93,19 @@ async def delete_account(account_id: int, user: User = Depends(require_user), db
     db.delete(row); db.commit()
     return
 
-@router.post("/full-parse", status_code=202)
-def run_full_parse():
-    # Τρέχει σε background thread για να μη μπλοκάρει το UI
-    def _job():
-        meetings = extract_meetings_all_accounts(force_full=True)
-        store_meetings_to_db(meetings)
-    threading.Thread(target=_job, daemon=True).start()
+# @router.post("/full-parse", status_code=202)
+# def run_full_parse():
+#     # Τρέχει σε background thread για να μη μπλοκάρει το UI
+#     def _job():
+#         meetings = extract_meetings_all_accounts(force_full=True)
+#         store_meetings_to_db(meetings)
+#     threading.Thread(target=_job, daemon=True).start()
+#     return {"status": "full_parse_triggered"}
+
+@router.post("/full-parse")
+async def trigger_full_parse(user = Depends(require_user)):
+    # τρέχει ασύγχρονα για να μη μπλοκάρει το request
+    threading.Thread(target=extract_meetings_all_accounts, daemon=True).start()
     return {"status": "full_parse_triggered"}
 
 # ============================

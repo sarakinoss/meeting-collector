@@ -1,88 +1,30 @@
-<!--<!DOCTYPE html>-->
-<!--<html>-->
-<!--<head>-->
-<!--    <meta charset="UTF-8">-->
-<!--    <title>Meeting Collector</title>-->
-<!--</head>-->
-<!--<body>-->
-<!--<h1>📅 Collected Meetings</h1>-->
-<!--<table border="1">-->
-<!--    <tr>-->
-<!--        <th>Msg Account</th>-->
-<!--        <th>Msg Folder</th>-->
-<!--        &lt;!&ndash;<th>Msg ID</th>&ndash;&gt;-->
-<!--        <th>Msg Date</th>-->
-<!--        <th>Msg Subject</th>-->
-<!--        <th>Msg Sender</th>-->
-<!--        <th>Msg Attendants</th>-->
-<!--        <th>Meet Platform</th>-->
-<!--        <th>Meet ID</th>-->
-<!--        <th>Meet Attendants</th>-->
-<!--        <th>Meet Date</th>-->
-<!--        <th>Meet Link</th>-->
-<!--    </tr>-->
-<!--    {% for m in meetings %}-->
-<!--    <tr>-->
-<!--        <td>{{ m["msg_account"] }}</td>-->
-<!--        <td>{{ m["msg_folder"] }}</td>-->
-<!--        &lt;!&ndash;<td>{{ m["msg_id"] }}</td>&ndash;&gt;-->
-<!--        <td>{{ m["msg_date"] }}</td>-->
-<!--        <td>{{ m["msg_subject"] }}</td>-->
-<!--        <td>{{ m["msg_sender"] }}</td>-->
-<!--        <td>{{ m["msg_attendants"] }}</td>-->
-<!--        <td>{{ m["meet_platform"] }}</td>-->
-<!--        <td>{{ m["meet_id"] }}</td>-->
-<!--        <td>{{ m["meet_attendants"] }}</td>-->
-<!--        <td>{{ m["meet_date"] }}</td>-->
-<!--        <td><a href="{{ m["meet_link"] }}" target="_blank">Join</a></td>-->
-<!--    </tr>-->
-<!--    {% endfor %}-->
-<!--</table>-->
+{% extends "base.html" %}
 
-<!--</body>-->
-<!--</html>-->
+{% block title %}Αρχική · Meeting Collector{% endblock %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Meeting Collector</title>
+{% block head_extra %}
+<link rel="stylesheet" href="/static/calendar.css" />
+<!--<link rel="stylesheet" href="{{ url_for('static', path='calendar.css') }}">-->
 
-    <!-- Tailwind (CDN) -->
-    <script src="https://cdn.tailwindcss.com"></script>
+<!-- Global Tailwind (όλο το site το χρησιμοποιεί) -->
+<script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- FullCalendar (CDN) -->
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet"/>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales-all.global.min.js"></script>
+<!-- FullCalendar (global, για να δουλεύει άμεσα το index) -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales-all.global.min.js"></script>
+<script defer src="{{ url_for('static', path='main.js') }}"></script>
+{% endblock %}
 
-    <style>
-        /* Small style tweaks */
-        .badge {
-            @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
-        }
 
-        .badge-zoom {
-            @apply bg-blue-100 text-blue-700;
-        }
-
-        .badge-teams {
-            @apply bg-purple-100 text-purple-700;
-        }
-
-        .badge-google {
-            @apply bg-green-100 text-green-700;
-        }
-
-        /*.scroll-area { max-height: 60vh; overflow: auto; }*/
-    </style>
-</head>
+{% block content %}
 <body class="min-h-screen grid grid-rows-[auto,1fr] bg-slate-50 text-slate-900">
-<!-- Top bar -->
+
+<!-- Header -->
 <header class="border-b bg-white">
     <div class="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-3">
-        <h1 class="text-2xl font-semibold">📅 Meeting Collector</h1>
+
+        <h1 href="/" class="text-2xl font-semibold">📅 Meeting Collector</h1>
 
         <!-- keeps counts (events/links/dates) -->
         <span id="status" class="ml-2 text-sm text-slate-500">ready</span>
@@ -107,12 +49,30 @@
             <button id="btn-refresh" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">Refresh</button>
             <a id="btn-export" class="rounded-xl bg-white border px-3 py-2 text-sm hover:bg-slate-100" href="#">Export.ics (visible)</a>
         </div>
+
+        <nav class="flex items-center gap-3">
+            {% if user %}
+            <!-- Avatar dropdown (CSS-only με <details>) -->
+            <details class="user-menu">
+                <summary class="avatar" title="{{ user.username }}">
+                    {{ (user.username or 'U')[:1]|upper }}
+                </summary>
+                <div class="menu">
+                    <a href="/auth/settings">Ρυθμίσεις</a>
+                    {% if user.is_admin %}
+                    <a href="/auth/admin/users">Χρήστες</a>
+                    {% endif %}
+                    <a href="/auth/logout">Αποσύνδεση</a>
+                </div>
+            </details>
+            {% else %}
+            <a href="/auth/login" class="btn">Σύνδεση</a>
+            {% endif %}
+        </nav>
     </div>
 </header>
-
 <!--  Left Side Panel  -->
 <main class="w-full p-4 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 overflow-hidden">
-
     <!-- Filters -->
     <aside class="lg:col-span-1 bg-white rounded-2xl shadow p-4 h-full overflow-auto">
         <h2 class="text-sm font-semibold text-slate-700 tracking-wide">Filters</h2>
@@ -176,7 +136,9 @@
             <button data-tab="calendar" class="tab-btn active rounded-xl px-4 py-2 text-sm bg-slate-900 text-white">
                 Calendar
             </button>
-            <button data-tab="table" class="tab-btn rounded-xl px-4 py-2 text-sm hover:bg-slate-50">Table</button>
+            <button data-tab="table" class="tab-btn rounded-xl px-4 py-2 text-sm hover:bg-slate-50">
+                Table
+            </button>
         </div>
 
         <!-- Calendar -->
@@ -205,49 +167,16 @@
             </div>
         </div>
 
+        <div>
         <label class="mt-2 inline-flex items-center gap-2 text-sm">
             <input id="showNoDate" type="checkbox"/>
-            <span>Include messages without date (table only)</span>
+            <span>Include messages without a date (table view only)</span>
         </label>
 
         <button id="btnRunFullParse">Run Full Parse</button>
-
-
+        </div>
 
     </section>
-
-    <section id="account-form" class="p-4 border rounded mb-4">
-  <h2 class="font-bold mb-2">Add IMAP Account</h2>
-  <form id="formAddAccount">
-    <div class="mb-2">
-      <label>Email</label>
-      <input name="email" type="email" required class="border p-1 w-full"/>
-    </div>
-    <div class="mb-2">
-      <label>Display Name</label>
-      <input name="display_name" type="text" class="border p-1 w-full"/>
-    </div>
-    <div class="mb-2">
-      <label>IMAP Host</label>
-      <input name="imap_host" required class="border p-1 w-full"/>
-    </div>
-    <div class="mb-2">
-      <label>IMAP Port</label>
-      <input name="imap_port" type="number" value="993" class="border p-1 w-full"/>
-    </div>
-    <div class="mb-2">
-      <label>IMAP User</label>
-      <input name="imap_user" class="border p-1 w-full"/>
-    </div>
-    <div class="mb-2">
-      <label>Password</label>
-      <input name="imap_password" type="password" required class="border p-1 w-full"/>
-    </div>
-    <button type="submit" class="bg-slate-900 text-white px-3 py-1 rounded">
-      Save Account
-    </button>
-  </form>
-</section>
 
 </main>
 
@@ -263,8 +192,8 @@
     </div>
 </div>
 
-<!--<script src="../static/main.js"></script>-->
-<script defer src="{{ url_for('static', path='main.js') }}"></script>
+<!-- Global app logic (φορτώνεται αφού υπάρχουν όλα τα DOM + CDNs) -->
+<!--<script defer src="{{ url_for('static', path='main.js') }}"></script>-->
 
 </body>
-</html>
+{% endblock %}

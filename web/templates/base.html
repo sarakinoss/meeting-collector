@@ -1,31 +1,21 @@
 <!doctype html>
 <html lang="el">
 <head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}Meeting Collector{% endblock %}</title>
-    <link rel="stylesheet" href="/static/app.css"/>
+
+    <!-- Global styles -->
+<!--    <link rel="stylesheet" href="/static/app.css" />-->
+
+
+
+    {% block head_extra %}{% endblock %}
+
 </head>
-<body>
-<header class="topbar">
-    <div class="brand" onclick="location.href='/'">Meeting Collector</div>
-    <nav class="nav-right">
-        {% if user %}
-        <!--<a href="/settings" class="link">Ρυθμίσεις</a>-->
-        <a href="{{ request.url_for('settings_page') }}" class="link">Ρυθμίσεις</a>
-        <span class="sep">|</span>
-        <form action="/logout" method="get" style="display:inline">
-            <button class="btn btn-ghost">Αποσύνδεση</button>
-        </form>
-        {% else %}
-        <a href="/login" class="btn">Σύνδεση</a>
-        {% endif %}
-    </nav>
-</header>
 
 
-<main class="container">
-    {% block content %}{% endblock %}
-</main>
-</body>
+{% block content %}{% endblock %}
+
+
 </html>

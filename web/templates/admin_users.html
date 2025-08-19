@@ -1,11 +1,32 @@
 {% extends "base.html" %}
 {% block title %}Διαχείριση Χρηστών{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+{% endblock %}
 {% block content %}
+<body>
+<header class="topbar">
+  <div class="brand" onclick="location.href='/'">Meeting Collector</div>
+  <nav class="nav-right">
+    {% if user %}
+    <!--<a href="/settings" class="link">Ρυθμίσεις</a>-->
+    <a href="{{ request.url_for('settings_page') }}" class="link">Ρυθμίσεις</a>
+    <span class="sep">|</span>
+    <form action="/logout" method="get" style="display:inline">
+      <button class="btn btn-ghost">Αποσύνδεση</button>
+    </form>
+    {% else %}
+    <a href="{{ request.url_for('logout') }}" class="btn btn-ghost">Αποσύνδεση</a>
+    {% endif %}
+  </nav>
+</header>
+
+<main class="container">
   <h1>Χρήστες</h1>
 
   <section class="card">
     <h2>Νέος χρήστης</h2>
-    <form method="post" action="/admin/users" class="grid-form">
+    <form method="post" action="/auth/admin/users" class="grid-form">
       <label>Username<br><input name="username" required></label>
       <label>Email<br><input name="email" type="email"></label>
       <label>Password<br><input name="password" type="password" required></label>
@@ -32,4 +53,6 @@
       </tbody>
     </table>
   </section>
+</main>
+</body>
 {% endblock %}

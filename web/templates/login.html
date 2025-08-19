@@ -1,12 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Σύνδεση · Meeting Collector{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+{% endblock %}
 {% block content %}
+
 <div class="auth-card">
     <h1>Σύνδεση</h1>
     {% if error %}
     <div class="alert">{{ error }}</div>
     {% endif %}
-    <form method="post" action="/login" class="form">
+    <form method="post" action="/auth/login" class="form">
         <label>Όνομα χρήστη<br><input name="username" required/></label>
         <label>Κωδικός<br><input type="password" name="password" required/></label>
         <button class="btn btn-primary" type="submit">Είσοδος</button>
