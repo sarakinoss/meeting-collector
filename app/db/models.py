@@ -49,6 +49,14 @@ class MailAccount(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
+class UserMailAccess(Base):
+    __tablename__ = "user_mail_access"
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    mail_account_id: Mapped[int] = mapped_column(ForeignKey("mail_accounts.id"), primary_key=True)
+    is_owner: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_parse: Mapped[bool] = mapped_column(Boolean, default=True)
+    can_send: Mapped[bool] = mapped_column(Boolean, default=False)
+
 class JobName(str, enum.Enum):
     collector = "collector"
 

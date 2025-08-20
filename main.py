@@ -9,13 +9,14 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 # App components
 from app.db.init_db import init_db
 from scheduler import start_scheduler
+from app.db.session import SessionLocal
+from app.db.models import User
 
 # Routers
 from app.api.endpoints import router as api_router
 from app.api.auth import router as auth_router
 from sqlalchemy import select
-from app.db.session import SessionLocal
-from app.db.models import User
+
 
 # Load secret key
 #try:

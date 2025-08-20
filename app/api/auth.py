@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from app.db.session import get_db, SessionLocal
-from app.db.models import User, MailAccount
+from app.db.models import User, MailAccount, UserMailAccess
 from app.api.deps import get_current_user, require_user, require_admin
 from app.core.security import verify_password, hash_password
 
@@ -168,3 +168,23 @@ async def me(user: User = Depends(require_user)):
 @router.get("/settings", response_class=HTMLResponse, name="settings_page")
 async def settings_page(request: Request, user: User = Depends(require_user)):
     return templates.TemplateResponse("settings.html", {"request": request, "user": user})
+
+
+
+@router.post("/api/access/{mail_account_id}/{user_id}")
+def grant_access(mail_account_id: int, user_id: int, db: Session = Depends(get_db)):
+    exists = db.execute(select(UserMailAccess).where(
+        UserMailAccess.user_id == user_id,
+        UserMailAccess.mail_account_id == mail_account_id
+    )).first()
+    if not exists:
+        db.add(UserMailAccess(user_id=user_id, mail_account_id=mail_account_id, is_owner=False, can_parse=True, can_send=False))
+        db.commit()
+    return {"ok": True}
+
+@router.delete("/api/access/{mail_account_id}/{user_id}")
+def revoke_access(mail_account_id: int, user_id: int, db: Session = Depends(get_db)):
+    row = db.get(UserMailAccess, {"user_id": user_id, "mail_account_id": mail_account_id})
+    if row:
+        db.delete(row); db.commit()
+    return {"ok": True}
