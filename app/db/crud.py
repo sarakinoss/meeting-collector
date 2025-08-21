@@ -9,7 +9,9 @@ from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.db.models import Meeting, Email, MeetingEmail
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
+
+
 
 def _parse_dt(s: Optional[str]) -> Optional[datetime]:
     if not s: return None
@@ -153,6 +155,7 @@ def store_meetings_to_db(meeting_list: Iterable[dict], db: Session | None = None
 #     finally:
 #         if own_session:
 #             db.close()
+
 def get_all_meetings_as_dict(db: Session | None = None) -> list[dict]:
     own_session = False
     if db is None:
@@ -196,3 +199,72 @@ def get_all_meetings_as_dict(db: Session | None = None) -> list[dict]:
             db.close()
 
 
+def upsert_email(db: Session, *, account: str, folder: str, message_id: str,
+                 subject: str | None, sender: str | None, recipients: str | None,
+                 internaldate: datetime | None, received_at: datetime | None,
+                 eml_path: str | None, has_calendar: bool) -> Email:
+    q = select(Email).where(and_(Email.account==account, Email.message_id==message_id))
+    row = db.execute(q).scalar_one_or_none()
+    if row is None:
+        row = Email(
+            account=account, folder=folder, message_id=message_id,
+            subject=subject, sender=sender, recipients=recipients,
+            internaldate=internaldate, received_at=received_at,
+            eml_path=eml_path, has_calendar=has_calendar
+        )
+        db.add(row)
+    else:
+        row.folder = folder
+        row.subject = subject
+        row.sender = sender
+        row.recipients = recipients
+        row.internaldate = internaldate
+        row.received_at = received_at
+        row.eml_path = eml_path
+        row.has_calendar = has_calendar
+    return row
+
+
+def upsert_meeting(db: Session, *, platform: str, uid: str | None,
+                   link: str | None, title: str | None,
+                   start: datetime | None, end: datetime | None, all_day: bool,
+                   organizer: str | None, attendees: str | None,
+                   parse_reason: str | None, parse_snippet: str | None,
+                   last_msg_datetime: datetime | None) -> Meeting:
+    """
+    Key strategy:
+    1) Αν υπάρχει uid+platform → αυτό είναι το primary key μας.
+    2) Αλλιώς αν υπάρχει link → δούλεψε με link.
+    3) Τελευταία λύση: τίτλος+ημερομηνία (ασθενές κλειδί).
+    """
+    row = None
+    if uid:
+        row = db.execute(select(Meeting).where(and_(Meeting.platform==platform, Meeting.uid==uid))).scalar_one_or_none()
+    if row is None and link:
+        row = db.execute(select(Meeting).where(Meeting.link==link)).scalar_one_or_none()
+    if row is None:
+        row = Meeting(platform=platform, uid=uid, link=link)
+        db.add(row)
+
+    # keep latest agreed values (τελευταίο email υπερισχύει)
+    row.title = title
+    row.start = start
+    row.end = end
+    row.all_day = bool(all_day)
+    row.organizer = organizer
+    row.attendees = attendees
+    row.parse_reason = parse_reason
+    row.parse_snippet = parse_snippet
+    if last_msg_datetime:
+        row.last_msg_datetime = last_msg_datetime
+    return row
+
+
+def link_meeting_email(db: Session, *, meeting: Meeting, email: Email, role: str | None = None):
+    exists = db.execute(
+        select(MeetingEmail).where(
+            and_(MeetingEmail.meeting_id==meeting.id, MeetingEmail.email_id==email.id)
+        )
+    ).scalar_one_or_none()
+    if not exists:
+        db.add(MeetingEmail(meeting_id=meeting.id, email_id=email.id, role=role))

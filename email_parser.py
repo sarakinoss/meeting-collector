@@ -15,12 +15,16 @@ from imapclient.exceptions import IMAPClientError
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_
 
-from app.db.models import Email
 from app.db.models import MailAccount, UserMailAccess
 from app.db.session import SessionLocal
 
 from app.core.crypto import decrypt
 from app.collector.save_eml import save_eml_bytes
+
+from email.utils import parsedate_to_datetime
+from app.db.session import SessionLocal
+from app.db.models import Email, Meeting
+from app.db import crud
 
 
 # TODO Mark found email with meetings as RED in order to distiguish at a glance.
@@ -429,6 +433,31 @@ def extract_meetings_for_account(*,
     meetings = list(meetings_by_id.values())
     return meetings
 
+# helper για ημερομηνίες (αν είναι string)
+def _to_dt(s):
+    if not s: return None
+    try:
+        dt = dateparser.parse(s)
+        if dt and dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+import re
+_uuid_like = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}@.+$", re.I)
+
+def canonicalize_attendees(s: str | None) -> str | None:
+    if not s: return None
+    parts = [p.strip() for p in s.split(",")]
+    parts = [p for p in parts if not _uuid_like.match(p)]
+    # αφαιρέσεις διπλότυπα, μικροκαθαρισμοί
+    seen = set(); out = []
+    for p in parts:
+        if p.lower() not in seen:
+            seen.add(p.lower())
+            out.append(p)
+    return ", ".join(out) if out else None
 
 # def extract_meetings():
 #     meetings = []
