@@ -5,6 +5,35 @@
     const $ = (sel, root = document) => root.querySelector(sel);
     const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+    // ---- API endpoints (προσαρμόζεις αν τα έχεις με άλλο path)
+    const API_ACCOUNTS = "api/accounts";      // GET -> [{id,email,parse_enabled,last_full_parse_at,last_incremental_parse_at}, ...]
+    const API_UPDATE   = "/update";         // POST -> {status:"update_triggered"}
+    const API_FULL     = "/full-parse";     // POST -> {status:"full_parse_triggered"}
+
+
+    const sidePanel   = $('#sidePanel');
+    const sideOverlay = $('#sideOverlay');
+    const btnToggle   = $('#btnSideToggle');
+
+    function openSide() {
+        sidePanel?.classList.remove('-translate-x-full');
+        sideOverlay?.classList.remove('hidden');
+    }
+
+    function closeSide() {
+        sidePanel?.classList.add('-translate-x-full');
+        sideOverlay?.classList.add('hidden');
+    }
+
+    btnToggle?.addEventListener('click', () => {
+        if (!sidePanel) return;
+        const hidden = sidePanel.classList.contains('-translate-x-full');
+        hidden ? openSide() : closeSide();
+    });
+
+    sideOverlay?.addEventListener('click', closeSide);
+
+
     function onReady(cb) {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', cb, {once: true});
@@ -150,6 +179,10 @@
         }));
     }
 
+    const accountCbs = $$('#accountsList input[type="checkbox"]');
+    const useAccountFilter = accountCbs.length > 0;         // μόνο αν έχουν φορτωθεί accounts
+    const selectedAccs = useAccountFilter ? getSelectedAccounts() : null;
+
     function applyFilters(list) {
         const qEl = $('#q');
         const fromEl = $('#from');
@@ -170,6 +203,24 @@
             if (q) {
                 const hay = `${ev.title} ${(ev.extendedProps.subject || '')} ${(ev.extendedProps.sender || '')} ${(ev.extendedProps.attendees || '')}`.toLowerCase();
                 if (!hay.includes(q)) return false;
+            }
+            // --- Account filter ---
+            if (useAccountFilter) {
+                // Αν δεν έχει επιλεγεί κανένας λογαριασμός → μην εμφανίζεις κανένα meeting
+                if (selectedAccs.size === 0) return false;
+
+                // Πάρε το account id/email από τα extendedProps
+                const accKey =
+                    String(
+                        ev.extendedProps?.account_id ??
+                        ev.extendedProps?.accountId ??
+                        ev.extendedProps?.account ??
+                        ev.extendedProps?.email ??
+                        ''
+                    );
+
+                // Αν το event έχει ταυτότητα account και ΔΕΝ είναι στη λίστα των επιλεγμένων → κόψ’ το
+                if (accKey && !selectedAccs.has(accKey)) return false;
             }
             return true;
         });
@@ -329,6 +380,14 @@
         }
     }
 
+    function getSelectedAccounts() {
+        const ids = [];
+        $$('#accountsList input[type="checkbox"]').forEach(cb => {
+            if (cb.checked) ids.push(cb.getAttribute('data-account-id'));
+        });
+        return new Set(ids);
+    }
+
     function openDrawer(ev) {
         const drawer = $('#drawer');
         const body = $('#drawer-body');
@@ -354,6 +413,85 @@
         // Close buttons / backdrop
         $$('#drawer [data-close]').forEach(el => el.addEventListener('click', () => drawer.classList.add('hidden')));
         drawer.classList.remove('hidden');
+    }
+
+
+    async function loadAccounts() {
+        try {
+            const res = await fetch(API_ACCOUNTS);
+            if (!res.ok) throw new Error(`Accounts fetch failed: ${res.status}`);
+            const accounts = await res.json();
+            renderAccountList(accounts);
+        } catch (e) {
+            console.error(e);
+            document.getElementById("accountsList").innerHTML =
+                `<li class="text-sm text-red-600 px-2">Failed to load accounts.</li>`;
+        }
+    }
+
+
+    function renderAccountList(accounts) {
+        const ul = $('#accountsList');
+        if (!ul) return;
+        if (!Array.isArray(accounts) || accounts.length === 0) {
+            ul.innerHTML = `<li class="text-sm text-slate-500 px-2">No accounts.</li>`;
+            return;
+        }
+        ul.innerHTML = accounts.map(acc => {
+            const tsISO = lastScanISO(acc);
+            const tsLabel = tsISO ? humanize(tsISO) : "—";
+            return `
+      <li class="px-2">
+        <label class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-slate-100">
+          <input type="checkbox" class="accent-blue-600"
+                 data-account-id="${escapeHtml(String(acc.id ?? ""))}"
+                 checked />
+          <span class="text-sm font-medium">${escapeHtml(acc.email ?? "")}</span>
+          <span class="ml-auto text-xs text-slate-500" title="${tsISO ?? ""}">${tsLabel}</span>
+        </label>
+      </li>`;
+        }).join("");
+    }
+
+// Επιλογή timestamp: ο νεότερος από full/incremental
+    function lastScanISO(acc) {
+        const t1 = acc?.last_incremental_parse_at;
+        const t2 = acc?.last_full_parse_at;
+        const iso = newestISO(t1, t2);
+        return iso;
+    }
+
+    function newestISO(a, b) {
+        if (!a && !b) return null;
+        if (a && !b) return a;
+        if (!a && b) return b;
+        return (new Date(a) > new Date(b)) ? a : b;
+    }
+
+    function humanize(iso) {
+        // local human-readable: π.χ. Πέμ, 21 Αυγ 2025, 10:42
+        try {
+            const d = new Date(iso);
+            return d.toLocaleString(undefined, {
+                weekday: "short",
+                year: "numeric", month: "short", day: "2-digit",
+                hour: "2-digit", minute: "2-digit"
+            });
+        } catch { return iso; }
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"'`=\/]/g, c => ({
+            "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;",
+            "`":"&#96;", "=":"&#61;", "/":"&#47;"
+        }[c]));
+    }
+
+    // Προαιρετικό: ένδειξη busy σε κουμπιά
+    function toggleBusy(btn, on) {
+        if (!btn) return;
+        btn.disabled = !!on;
+        btn.classList.toggle("opacity-60", !!on);
     }
 
     // ---------- Boot ----------
@@ -388,6 +526,7 @@
             $$('.platform').forEach(cb => cb.checked = true);
             if (from) from.value = '';
             if (to) to.value = '';
+            $$('#accountsList input[type="checkbox"]').forEach(cb => cb.checked = true);
             render();
         });
 
@@ -409,18 +548,18 @@
     }
 
     onReady(() => {
-        const btn = document.getElementById('btnRunFullParse');
-        if (!btn) return;
-        btn.addEventListener('click', async () => {
-            e.preventDefault();
-            if (!confirm('Run full parse for all accounts?')) return;
-            try {
-                const res = await fetch('/full-parse', {method: 'POST'});
-                alert(res.ok ? 'Full parse started.' : 'Error starting full parse');
-            } catch (e) {
-                alert('Error starting full parse');
-            }
-        });
+        // const btn = document.getElementById('btnRunFullParse');
+        // if (!btn) return;
+        // btn.addEventListener('click', async () => {
+        //     e.preventDefault();
+        //     if (!confirm('Run full parse for all accounts?')) return;
+        //     try {
+        //         const res = await fetch('/full-parse', {method: 'POST'});
+        //         alert(res.ok ? 'Full parse started.' : 'Error starting full parse');
+        //     } catch (e) {
+        //         alert('Error starting full parse');
+        //     }
+        // });
 
         // Handle account form submit
         const form = document.getElementById('formAddAccount');
@@ -452,6 +591,40 @@
             });
         }
 
+        // ---- Accounts panel ----
+        window.addEventListener("DOMContentLoaded", () => {
+            loadAccounts();
+        });
+
+        // ---- Header buttons
+        document.getElementById("btnUpdate")?.addEventListener("click", async () => {
+            const b = document.getElementById("btnUpdate");
+            toggleBusy(b, true);
+            try {
+                await fetch(API_UPDATE, { method: "POST" });
+                // Μετά από update, κάνε refresh τα meetings
+                await reloadMeetings?.();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                toggleBusy(b, false);
+            }
+        });
+
+        document.getElementById("btnFullParse")?.addEventListener("click", async () => {
+            const b = document.getElementById("btnFullParse");
+            if (!confirm("Run FULL parse for all accounts?")) return;
+            toggleBusy(b, true);
+            try {
+                await fetch(API_FULL, { method: "POST" });
+                // Μετά από full-parse, κάνε refresh τα meetings
+                await reloadMeetings?.();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                toggleBusy(b, false);
+            }
+        });
 
         init();
     });

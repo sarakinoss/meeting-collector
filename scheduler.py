@@ -1,18 +1,12 @@
-
-# scheduler.py
-# └── start_scheduler()
-#     ├── ⏱️ immediate: extract_meetings() (from email_parser.py)
-#     │   └── connect to each account
-#     │       └── scan folders/emails
-#     │           └── parse subject, body, platform, meeting link, etc.
-#     └── ⏳ schedule: every 5 minutes -> repeat above
-
-#     └── insert_meetings() → app/db.py → into `meetings.db`
-
 from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime
 
 from email_parser import extract_meetings_all_accounts
 from app.db.crud import store_meetings_to_db
+
+def _fetch_and_store():
+    meetings = extract_meetings_all_accounts()
+    store_meetings_to_db(meetings)
 
 # Initializes the background scheduler (using APScheduler) and:
 # 1. Immediately fetches and stores meetings when the service starts.
@@ -24,8 +18,13 @@ def start_scheduler():
     #Fetch meetings on service start.
     # store_meetings_to_db(extract_meetings())
 
-    meetings_by_id = extract_meetings_all_accounts()
-    store_meetings_to_db(meetings_by_id)
+    # 1) Τρέξε αμέσως σε BACKGROUND (μη μπλοκάρει το boot)
+    scheduler.add_job(_fetch_and_store, 'date', run_date=datetime.now())
+    # 2) Επανάληψη ανά 5'
+    scheduler.add_job(_fetch_and_store, 'interval', minutes=10, next_run_time=None)
+
+    # meetings_by_id = extract_meetings_all_accounts()
+    # store_meetings_to_db(meetings_by_id)
     
      # Schedule a recurring task to fetch and store meetings every 5 minutes
     # scheduler.add_job(

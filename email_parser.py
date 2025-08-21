@@ -1,4 +1,3 @@
-import re
 import email
 import socket
 import logging
@@ -15,32 +14,15 @@ from imapclient.exceptions import IMAPClientError
 from sqlalchemy.orm import Session
 from sqlalchemy import select, and_
 
-from app.db.models import MailAccount, UserMailAccess
-from app.db.session import SessionLocal
-
 from app.core.crypto import decrypt
 from app.collector.save_eml import save_eml_bytes
 
-from email.utils import parsedate_to_datetime
 from app.db.session import SessionLocal
-from app.db.models import Email, Meeting
-from app.db import crud
-
+from app.db.models import Email, MailAccount
 
 # TODO Mark found email with meetings as RED in order to distiguish at a glance.
 # TODO For the same meeting ID it has to keep the last message meeting date like sent@16/4/25, 08:50 Libra
-
-MODE = "SINCE"  # or "UNSEEN" or "SINCE" or "ALL"
 # TODO Grab last parsing date from database to avoid full mailbox parse and set it to SINCE_DATE
-SINCE_DATE = "01-Jun-2024"
-UNTIL_DATE = datetime.now().strftime("%d-%b-%Y")
-
-
-def get_active_imap_accounts(db: Session) -> list[MailAccount]:
-    q = select(MailAccount).where(MailAccount.enabled == True, MailAccount.can_parse == True,
-                                  MailAccount.imap_host != None)
-    return db.execute(q).scalars().all()
-
 
 def extract_meetings_all_accounts(*, force_full: bool = False) -> list[dict]:
     results: list[dict] = []
@@ -48,13 +30,21 @@ def extract_meetings_all_accounts(*, force_full: bool = False) -> list[dict]:
     with SessionLocal() as db:
         accounts = get_active_imap_accounts(db)
         for acc in accounts:
-            since = None if force_full else (acc.last_incremental_parse_at or acc.last_full_parse_at)
+            # since = None if force_full else (acc.last_incremental_parse_at or acc.last_full_parse_at)
+            if force_full:
+                since = None
+            else:
+                # latest of last_incremental_parse_at, last_full_parse_at
+                t1 = acc.last_incremental_parse_at
+                t2 = acc.last_full_parse_at
+                since = max([t for t in (t1, t2) if t is not None], default=None)
+
+
             # Fallback: your existing default SINCE_DATE if both None
             acc_email = acc.email
             host, port, use_ssl = acc.imap_host, (acc.imap_port or 993), bool(acc.imap_ssl)
             username = acc.imap_user or acc.email
-            # password = decrypt(acc.imap_password_enc) or ""
-            # ΜΕΤΑ (safe fallback)
+
             raw = acc.imap_password_enc or ""
             looks_like_fernet = raw.startswith("gAAAA")  # αρκεί ως cheap heuristic
             password = decrypt(raw) if looks_like_fernet else raw
@@ -69,18 +59,25 @@ def extract_meetings_all_accounts(*, force_full: bool = False) -> list[dict]:
                 imap_password=password,
                 since_dt=since,
             )
-            # # merge into global results (your existing format)
-            # for k, v in meetings.items():
-            #     results[k] = v
 
             results.extend(meetings)
 
-            # update per-account incremental timestamp on success
-            acc.last_incremental_parse_at = now
+            # TODO Make sure that timestamp is stored only if parsing was success
+
+            # update per-account corresponding update
+            if force_full:
+                acc.last_full_parse_at = now
+            else:
+                acc.last_incremental_parse_at = now
+
             db.add(acc)
         db.commit()
     return results
 
+def get_active_imap_accounts(db: Session) -> list[MailAccount]:
+    q = select(MailAccount).where(MailAccount.enabled == True, MailAccount.can_parse == True,
+                                  MailAccount.imap_host != None)
+    return db.execute(q).scalars().all()
 
 # -- Logging Setup --
 logging.basicConfig(
@@ -93,26 +90,6 @@ logging.basicConfig(
 )
 
 
-# def get_imap_accounts_for_parsing(db, *, user_id: int | None = None) -> list[MailAccount]:
-#     q = select(MailAccount).where(
-#         MailAccount.enabled.is_(True),
-#         MailAccount.can_parse.is_(True),
-#         MailAccount.imap_host.is_not(None),
-#     )
-#     if user_id is not None:
-#         q = (
-#             select(MailAccount)
-#             .join(UserMailAccess, UserMailAccess.mail_account_id == MailAccount.id)
-#             .where(
-#                 UserMailAccess.user_id == user_id,
-#                 UserMailAccess.can_parse.is_(True),
-#                 MailAccount.enabled.is_(True),
-#                 MailAccount.can_parse.is_(True),
-#                 MailAccount.imap_host.is_not(None),
-#             )
-#         )
-#     return db.execute(q).scalars().all()
-
 
 def extract_meetings_for_account(*,
                                  email_address: str,
@@ -123,133 +100,53 @@ def extract_meetings_for_account(*,
                                  imap_password: str = "",
                                  since_dt: datetime | None = None,
                                  ):
-    meetings = []
-    meetings_by_id = {}  # New dictionary to group by meeting ID
 
-    # Effective SINCE date string for IMAP (fallback to existing constant)
-    effective_since = None
-    if since_dt is not None:
-        try:
-            effective_since = since_dt.strftime("%d-%b-%Y")
-        except Exception:
-            effective_since = None
+    meetings_by_id = {}
 
-    # Iterate email accounts
-    # for acc in load_accounts_from_file():
-    login_user = (imap_user or email_address)
-    if not imap_password:
-        logging.error(f"❌ Empty IMAP password after decryption for {email_address}. Check encryption/CRYPTO_SECRET.")
-        return []
 
-    logging.info(f"\n🔍 Connecting to {email_address} via {imap_host}:{imap_port} ssl={imap_ssl}")
+
     try:
-        # 1) Άνοιξε IMAP με σωστό port/ssl
-        # with IMAPClient(imap_host, port=imap_port, ssl=imap_ssl) as mail:
+        # 1) Άνοιξε IMAP
         with IMAPClient(imap_host) as mail:
 
             mail.login(email_address, imap_password)
+            logging.info(f"\n🔍 Connecting to {email_address} via {imap_host}:{imap_port} ssl={imap_ssl}")
 
-            # # 2) Κάνε login με imap_user (fallback στο email αν αποτύχει)
-            # try:
-            #     mail.login(login_user, imap_password)
-            # except Exception as e1:
-            #     if login_user != email_address:
-            #         logging.warning(f"⚠️ Login failed with '{login_user}', retrying with '{email_address}': {e1}")
-            #         mail.login(email_address, imap_password)
-            #     else:
-            #         raise
-
-            # helpful diagnostics
-            try:
-                logging.info(f"Capabilities: {mail.capabilities()}")
-                try:
-                    logging.info(f"Namespaces: {mail.namespace()}")
-                except Exception:
-                    pass
-            except Exception:
-                pass
-
-            # time.sleep(2.5)
             folders = mail.list_folders()
 
-            def is_selectable(flags: tuple[str, ...] | list[str]) -> bool:
-                # Αν περιέχει \Noselect δεν είναι “ανοίξιμος”
-                flags_lower = {f.lower() for f in flags or []}
-                return r'\noselect' not in flags_lower
-
-            # (προαιρετικό) ρυθμιζόμενη whitelist
-            preferred = {
-                "INBOX",
-                "[Gmail]/All Mail", "[Gmail]/Sent Mail", "[Gmail]/Important", "[Gmail]/Starred",
-                "Sent", "Archive"
-            }
             # Iterate account folders and subfolders with their flags and delimiters
             # Flags: \\HasChildren, \\HasNoChildren \\Flagged \\Junk
             # Delimiter /
             for flags, delimiter, folder_name in folders:
-                if not is_selectable(flags):
-                    # π.χ. [Gmail] container → skip
-                    logging.debug(f"Skipping noselection folder: {folder_name} {flags}")
-                    continue
-                # logging.info(f"\n📁 Folder: {folder_name}")
-
-                # if folder_name != "INBOX":
-                #     continue  # ❌ skip subfolders
-
-                # (προαιρετικό) Αν θες να περιορίσεις:
-                # if preferred and folder_name not in preferred:
-                #     continue
 
                 try:
                     try:
                         mail.select_folder(folder_name, readonly=True)
-                        # print(f"✅ Accessed: {folder_name}")
+                        print(f"✅ Accessed: {folder_name}")
                     except Exception as e:
                         print(f"⚠️ Failed to access {folder_name}: {e}")
                         continue
 
-                    # # Choose mode
-                    # if MODE == "ALL":
-                    #     data = mail.search(["ALL"])
-                    # elif MODE == "UNSEEN":
-                    #     data = mail.search(["UNSEEN"])
-                    # elif MODE == "SINCE":
-                    #     # data = mail.search(f'(SINCE "{SINCE_DATE}")')
-                    #     # data = mail.search(["SINCE", SINCE_DATE])
-                    #     data = mail.search(["SEEN", "SINCE", SINCE_DATE])
-                    #     # data = mail.search(["SINCE", SINCE_DATE, "BEFORE", UNTIL_DATE])
-                    #     # result, data = mail.search(None, f'(SINCE "01-Jun-2025" BEFORE "25-Jun-2025")')
-                    # else:
-                    #     raise ValueError(f"Invalid mode: {MODE}")
-                    # # 5) Χρησιμοποίησε το effective_since στο search (αλλιώς ALL)
-                    # if effective_since:
-                    #     # Παράδειγμα: μόνο SEEN από since-date (ή άλλα κριτήρια αν θέλεις)
-                    #     data = mail.search(["SINCE", effective_since])
-                    #     # π.χ. μόνο UNSEEN από since:
-                    #     # data = mail.search(["UNSEEN", "SINCE", effective_since])
-                    # else:
-                    #     data = mail.search(["ALL"])
+
+                    # # Effective SINCE date
+                    # since_crit = None
+                    # if since_dt is not None:
+                    #     try:
+                    #         since_crit = since_dt.date()  # ← ΣΗΜΑΝΤΙΚΟ: date, όχι '20-Aug-2025' string
+                    #     except Exception:
+                    #         since_crit = None
                     #
-                    # if not data:
+                    # # ...
+                    # if since_crit:
+                    #     # π.χ. μόνο UNSEEN από since
+                    #     ids = mail.search(["SINCE", since_crit])
+                    # else:
+                    #     ids = mail.search(["ALL"])
+                    #
+                    # if not ids:
                     #     continue
 
-                    # Effective SINCE date
-                    since_crit = None
-                    if since_dt is not None:
-                        try:
-                            since_crit = since_dt.date()  # ← ΣΗΜΑΝΤΙΚΟ: date, όχι '20-Aug-2025' string
-                        except Exception:
-                            since_crit = None
-
-                    # ...
-                    if since_crit:
-                        # π.χ. μόνο UNSEEN από since
-                        ids = mail.search(["UNSEEN", "SINCE", since_crit])
-                    else:
-                        ids = mail.search(["ALL"])
-
-                    if not ids:
-                        continue
+                    ids = mail.search(["ALL"])
 
                     #  Start parsing mail content with header infos
                     if ids:
@@ -263,7 +160,6 @@ def extract_meetings_for_account(*,
                             msg = email.message_from_bytes(body)
 
                             # Metadata
-                            # subject = msg.get("Subject", "No Subject")
 
                             # Subject Extract - Method 1 (Works)
                             subject = decode_mime_header(msg.get("Subject", "No Subject"))
@@ -280,7 +176,6 @@ def extract_meetings_for_account(*,
 
                             # Extract body
                             body = ""
-
                             text_body = ""
                             html_body = ""
 

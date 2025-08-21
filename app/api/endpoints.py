@@ -63,7 +63,7 @@ async def list_accounts(user: User = Depends(require_user), db: Session = Depend
     } for r in rows]
 
 
-@router.post("/accounts", status_code=201)
+@router.post("api/accounts", status_code=201)
 async def create_account(payload: AccountIn, user: User = Depends(require_user), db: Session = Depends(get_db)):
     # same email allowed across users; uniqueness only per owner here
     exists = db.execute(
@@ -85,6 +85,40 @@ async def create_account(payload: AccountIn, user: User = Depends(require_user),
     db.add(row); db.commit()
     return {"id": row.id}
 
+@router.get("/api/accounts")
+async def list_accounts(user: User = Depends(require_user), db: Session = Depends(get_db)):
+    rows = (
+        db.execute(
+            select(MailAccount)
+            .where(MailAccount.owner == str(user.id))
+            .order_by(MailAccount.id.desc())
+        )
+        .scalars()
+        .all()
+    )
+
+    def iso(dt):
+        return dt.isoformat() if dt else None
+
+    out = []
+    for r in rows:
+        # "για parsing" = ενεργό account ΚΑΙ επιτρέπεται parsing
+        if not (r.enabled and r.can_parse):
+            continue
+        out.append({
+            "id": r.id,
+            "email": r.email,
+            "display_name": r.display_name,
+            "parse_enabled": bool(r.enabled and r.can_parse),
+            "last_full_parse_at": iso(r.last_full_parse_at),
+            "last_incremental_parse_at": iso(r.last_incremental_parse_at),
+            # (προαιρετικά κρατάμε flags αν τα χρειαστεί UI αργότερα)
+            "enabled": r.enabled,
+            "can_parse": r.can_parse,
+        })
+    return out
+
+
 @router.delete("/api/accounts/{account_id}", status_code=204)
 async def delete_account(account_id: int, user: User = Depends(require_user), db: Session = Depends(get_db)):
     row = db.get(MailAccount, account_id)
@@ -102,11 +136,30 @@ async def delete_account(account_id: int, user: User = Depends(require_user), db
 #     threading.Thread(target=_job, daemon=True).start()
 #     return {"status": "full_parse_triggered"}
 
+# @router.post("/full-parse")
+# async def trigger_full_parse(user = Depends(require_user)):
+#     # τρέχει ασύγχρονα για να μη μπλοκάρει το request
+#     threading.Thread(target=extract_meetings_all_accounts, daemon=True).start()
+#     return {"status": "full_parse_triggered"}
+
 @router.post("/full-parse")
 async def trigger_full_parse(user = Depends(require_user)):
     # τρέχει ασύγχρονα για να μη μπλοκάρει το request
     threading.Thread(target=extract_meetings_all_accounts, daemon=True).start()
+    # τρέχει ασύγχρονα για να μη μπλοκάρει το request
+    def run():
+        meetings = extract_meetings_all_accounts(force_full=True)
+        store_meetings_to_db(meetings)
+    threading.Thread(target=run, daemon=True).start()
     return {"status": "full_parse_triggered"}
+
+@router.post("/update")
+async def trigger_incremental_update(user = Depends(require_user)):
+    def run():
+        meetings = extract_meetings_all_accounts(force_full=False)
+        store_meetings_to_db(meetings)
+    threading.Thread(target=run, daemon=True).start()
+    return {"status": "update_triggered"}
 
 # ============================
 # ========== STATUS ==========
