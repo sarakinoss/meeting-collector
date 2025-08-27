@@ -271,6 +271,13 @@
         status.textContent = `events ${withBoth} • links ${withLink}/${total} • dates ${withDate}/${total}`;
     }
 
+    const date = new Date();
+    const day = date.getDate();
+    const monthNames = ["ΙΑΝ", "ΦΕΒ", "ΜΑΡ", "ΑΠΡ", "ΜΑΪ", "ΙΟΥΝ", "ΙΟΥΛ", "ΑΥΓ", "ΣΕΠ", "ΟΚΤ", "ΝΟΕ", "ΔΕΚ"];
+
+    document.getElementById("calendarDay").textContent = day;
+    document.querySelector("#calendarIcon div:first-child").textContent = monthNames[date.getMonth()];
+
     // ---- NEW: poll /status and toggle loader/progress ----
     async function pollStatus() {
         try {

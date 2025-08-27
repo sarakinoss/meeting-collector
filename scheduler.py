@@ -21,7 +21,7 @@ def start_scheduler():
     # 1) Τρέξε αμέσως σε BACKGROUND (μη μπλοκάρει το boot)
     scheduler.add_job(_fetch_and_store, 'date', run_date=datetime.now())
     # 2) Επανάληψη ανά 5'
-    scheduler.add_job(_fetch_and_store, 'interval', minutes=10, next_run_time=None)
+    scheduler.add_job(_fetch_and_store, 'interval', minutes=60, next_run_time=None)
 
     # meetings_by_id = extract_meetings_all_accounts()
     # store_meetings_to_db(meetings_by_id)

@@ -19,9 +19,9 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "web" / "templates"))
 
 router = APIRouter(prefix="/auth")
 
-def _no_users_exist() -> bool:
-    with SessionLocal() as db:
-        return db.execute(select(User.id).limit(1)).first() is None
+# def _no_users_exist() -> bool:
+#     with SessionLocal() as db:
+#         return db.execute(select(User.id).limit(1)).first() is None
 
 @router.get("/first-run", response_class=HTMLResponse)
 async def first_run_page(request: Request, db: Session = Depends(get_db)):
@@ -70,21 +70,6 @@ async def first_run_submit(
     request.session["uid"] = u.id
     return RedirectResponse(request.url_for("settings_page"), status_code=302)
 
-# @router.get("/first-run")
-# async def first_run_form(request: Request):
-#     if not _no_users_exist():
-#         # admin υπάρχει ήδη: ΜΗΝ επιτρέπεις ξανά first-run
-#         return RedirectResponse("/", status_code=302)  # ή raise HTTPException(404, "Not found")
-#     # render φόρμα δημιουργίας admin
-#     ...
-#
-# @router.post("/first-run")
-# async def first_run_create_admin(request: Request):
-#     if not _no_users_exist():
-#         return RedirectResponse("/", status_code=302)  # ή 404
-#     # 1) φτιάξε admin
-#     # 2) κάνε auto-login γράφοντας request.session["uid"] = new_user.id
-#     return RedirectResponse("/", status_code=302)
 
 # @router.get("/admin/users", response_class=HTMLResponse)
 # async def admin_users_page(request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
@@ -212,6 +197,15 @@ async def admin_delete_user(user_id: int,
     u = db.get(User, user_id)
     if not u:
         raise HTTPException(status_code=404, detail="User not found")
+    # μην επιτρέπεις να διαγράψει κάποιος τον εαυτό του
+    if u.id == admin.id:
+        raise HTTPException(status_code=400, detail="Δεν μπορείς να διαγράψεις τον εαυτό σου.")
+
+    # μην αφήσεις να χαθεί ο τελευταίος admin
+    if u.is_admin:
+        admins_count = db.execute(select(User).where(User.is_admin == True)).scalars().all()
+        if len(admins_count) <= 1:
+            raise HTTPException(status_code=400, detail="Πρέπει να υπάρχει τουλάχιστον ένας admin.")
     db.delete(u)
     db.commit()
     return {"ok": True}
