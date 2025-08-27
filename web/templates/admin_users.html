@@ -22,6 +22,14 @@
 </header>
 
 <main class="container">
+{% if ok %}
+  <div class="banner success">Ο χρήστης δημιουργήθηκε με επιτυχία.</div>
+{% endif %}
+{% if err == 'username' %}
+  <div class="banner error">Υπάρχει ήδη χρήστης με αυτό το username.</div>
+{% elif err %}
+  <div class="banner error">{{ err }}</div>
+{% endif %}
   <h1>Χρήστες</h1>
 
   <section class="card">
@@ -48,11 +56,29 @@
           <td>{{ u.username }}</td>
           <td>{{ u.email or "" }}</td>
           <td>{{ "✓" if u.is_admin else "" }}</td>
+          <td><button class="btn btn-danger" onclick="deleteUser({{ u.id }})">Διαγραφή</button></td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
   </section>
 </main>
+<script>
+async function deleteUser(id){
+  if(!confirm("Να διαγραφεί ο χρήστης #"+id+";")) return;
+  const res = await fetch(`/auth/admin/users/${id}`, { method: "DELETE" });
+  if(res.ok){
+    const tr = document.querySelector(`tr[data-id="${id}"]`);
+    //tr?.parentNode?.removeChild(tr);
+    //tr?.remove();
+    location.reload(); // ανανέωση λίστας
+  }else{
+    const body = await res.json().catch(()=>({}));
+    alert("Σφάλμα: " + (body.detail || res.status));
+  }
+}
+
+   setTimeout(()=>{ document.querySelectorAll('.banner').forEach(b=>b.remove()); }, 3500);
+</script>
 </body>
 {% endblock %}

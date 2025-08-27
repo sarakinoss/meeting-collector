@@ -1,9 +1,13 @@
 {% extends "base.html" %}
+
 {% block title %}Ρυθμίσεις · Meeting Collector{% endblock %}
+
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
 {% endblock %}
+
 {% block content %}
+{% set section = (active if active is defined and active else 'email-accounts') %}
 <body>
 <header class="topbar">
     <div class="brand" onclick="location.href='/'">Meeting Collector</div>
@@ -19,85 +23,215 @@
     </nav>
 </header>
 
-<main class="container">
+<!--Add in-->
+<div class="settings-layout">
 
-    <h1>Ρυθμίσεις χρήστη</h1>
+    <aside class="settings-sidebar">
+        <!--        <div class="settings-sidebar-title">Ρυθμίσεις</div>-->
+        <nav>
+            <!--            <a class="settings-link {{ 'active' if active == 'email-accounts' else '' }}"-->
+            <!--               href="{{ request.url_for('settings_page') }}">Email Accounts</a>-->
+            <!--            &lt;!&ndash; placeholders για επόμενα tabs &ndash;&gt;-->
+            <!--            <a class="settings-link {{ 'active' if active == 'profile' else '' }}"-->
+            <!--               href="{{ request.url_for('settings_page') }}profile">Profile</a>-->
+            <!--            <a class="settings-link {{ 'active' if active == 'security' else '' }}"-->
+            <!--               href="{{ request.url_for('settings_page') }}security">Security</a>-->
+            <!--            <a class="settings-link {{ 'active' if active == 'notifications' else '' }}"-->
+            <!--               href="{{ request.url_for('settings_page') }}notifications">Notifications</a>-->
+            <a class="settings-link {{ 'active' if section == 'profile' else '' }}"
+               href="{{ request.url_for('settings_page', section='profile') }}">Profile</a>
+            <a class="settings-link {{ 'active' if section == 'email-accounts' else '' }}"
+               href="{{ request.url_for('settings_page') }}">Email Accounts</a>
+            <a class="settings-link {{ 'active' if section == 'notifications' else '' }}"
+               href="{{ request.url_for('settings_page', section='notifications') }}">Notifications</a>
+            <a class="settings-link {{ 'active' if section == 'security' else '' }}"
+               href="{{ request.url_for('settings_page', section='security') }}">Security</a>
+        </nav>
+    </aside>
 
-    <section class="card">
-        <h2>Λογαριασμοί Email για Parsing</h2>
-        <form id="acc-form" class="grid-form">
-            <div>
-                <label>Εμφανιζόμενο όνομα<br><input name="display_name"/></label>
-            </div>
-            <div>
-                <label>Email<br><input name="email" type="email" required/></label>
-            </div>
-            <div>
-                <label>IMAP Host<br><input name="imap_host" required/></label>
-            </div>
-            <div>
-                <label>IMAP Port<br><input name="imap_port" type="number" value="993"/></label>
-            </div>
-            <div>
-                <label>IMAP SSL<br>
-                    <select name="imap_ssl">
-                        <option value="true" selected>Ναι</option>
-                        <option value="false">Όχι</option>
-                    </select>
+
+    <main class="settings-content">
+        <header class="settings-header">
+            <h1 class="settings-breadcrumb">{{ 'Email Accounts' if active == 'email-accounts' else active|capitalize
+                }}</h1>
+            <!--            <div class="settings-breadcrumb">{{ 'Email Accounts' if active == 'email-accounts' else active|capitalize }}-->
+            <!--                <div class="settings-breadcrumb">{{ section|capitalize }}-->
+            <!--            </div>-->
+        </header>
+
+        <!-- Banner area (JS θα εγχέει εδώ flash μηνύματα) -->
+        <div id="banner-area"></div>
+
+        {% if section == 'email-accounts' %}
+        <section class="card">
+            <h2>Προσθήκη Λογαριασμού Email</h2>
+            <form id="formAddAccount" class="grid-form">
+                <div class="full-row">
+                    <h3>IMAP Credentials</h3>
+                </div>
+
+                <label>
+                    Display Name
+                    <input name="display_name" required>
                 </label>
-            </div>
-            <div>
-                <label>IMAP User (προαιρετικό)<br><input name="imap_user"/></label>
-            </div>
-            <div>
-                <label>IMAP Password<br><input name="imap_password" type="password" required/></label>
-            </div>
+
+                <label>
+                    Email
+                    <input name="email" type="email" required>
+                </label>
+
+                <label>
+                    Password
+                    <input name="imap_password" type="password" required>
+                </label>
+
+                <label>
+                    Host
+                    <input name="imap_host" required>
+                </label>
 
 
-            <div>
-                <label>SMTP Host (προαιρετικό)<br><input name="smtp_host"/></label>
-            </div>
-            <div>
-                <label>SMTP Port<br><input name="smtp_port" type="number" value="465"/></label>
-            </div>
-            <div>
-                <label>SMTP SSL<br>
+                <div class="grid-span-4" style="align-self:end">
+                    <button type="button" class="btn btn-secondary " onclick="testImap()">Test Connection</button>
+                    <button class="btn btn-primary">Προσθήκη</button>
+                </div>
+
+
+                <!--                <label>Port<br><input name="imap_port" type="number" value="993"></label>-->
+
+                <!--                <label>SSL<br>-->
+                <!--                    <select name="imap_ssl">-->
+                <!--                        <option value="true">Ναι</option>-->
+                <!--                        <option value="false">Όχι</option>-->
+                <!--                    </select>-->
+                <!--                </label>-->
+                <!--                <label>User<br><input name="imap_user" ></label>-->
+
+
+                <!--<div class="grid-span-2"><h3>SMTP</h3></div>
+                <label>Host<br><input name="smtp_host" ></label>
+                <label>Port<br><input name="smtp_port" type="number" value="587" ></label>
+                <label>SSL<br>
                     <select name="smtp_ssl">
-                        <option value="true" selected>Ναι</option>
                         <option value="false">Όχι</option>
+                        <option value="true">Ναι</option>
                     </select>
                 </label>
-            </div>
-            <div>
-                <label>SMTP User (προαιρετικό)<br><input name="smtp_user"/></label>
-            </div>
-            <div>
-                <label>SMTP Password (προαιρετικό)<br><input name="smtp_password" type="password"/></label>
-            </div>
+                <label>User<br><input name="smtp_user" ></label>
+                <label>Password<br><input name="smtp_password" type="password" ></label>-->
 
 
-            <div style="align-self:end">
-                <button class="btn btn-primary" type="submit">Προσθήκη</button>
-            </div>
-        </form>
-        <div id="acc-msg" class="muted" style="margin-top: .5rem"></div>
+            </form>
+        </section>
+
+        <section class="card">
+            <h2>Λογαριασμοί</h2>
+            <table class="table" id="tblAccounts">
+                <thead>
+                <tr>
+                    <th>Status</th>  <!-- ΝΕΟ -->
+                    <th>ID</th>
+                    <th>Display</th>
+                    <th>Email</th>
+                    <th>IMAP</th>
+                    <th>SMTP</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody id="accountsBody">
+                <!-- γεμίζει από JS -->
+                </tbody>
+            </table>
+        </section>
+        {% else %}
+        <section class="card"><em>Coming soon: {{ section }}</em></section>
+        {% endif %}
+    </main>
+</div>
+<!-- Add out-->
 
 
-        <table class="table" id="acc-table">
-            <thead>
-            <tr>
-                <th>ID</th>
-                <th>Όνομα</th>
-                <th>Email</th>
-                <th>IMAP</th>
-                <th>SMTP</th>
-                <th></th>
-            </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </section>
-</main>
+<!--<main class="container">-->
+
+<!--    <h1>Ρυθμίσεις χρήστη</h1>-->
+
+<!--    <section class="card">-->
+<!--        <h2>Λογαριασμοί Email για Parsing</h2>-->
+<!--        <form id="acc-form" class="grid-form">-->
+<!--            <div>-->
+<!--                <label>Εμφανιζόμενο όνομα<br><input name="display_name"/></label>-->
+<!--            </div>-->
+<!--            <div>-->
+<!--                <label>Email<br><input name="email" type="email" required/></label>-->
+<!--            </div>-->
+<!--            <div>-->
+<!--                <label>IMAP Host<br><input name="imap_host" required/></label>-->
+<!--            </div>-->
+<!--            <div>-->
+<!--                <label>IMAP Port<br><input name="imap_port" type="number" value="993"/></label>-->
+<!--            </div>-->
+<!--            <div>-->
+<!--                <label>IMAP SSL<br>-->
+<!--                    <select name="imap_ssl">-->
+<!--                        <option value="true" selected>Ναι</option>-->
+<!--                        <option value="false">Όχι</option>-->
+<!--                    </select>-->
+<!--                </label>-->
+<!--            </div>-->
+<!--            <div>-->
+<!--                <label>IMAP User (προαιρετικό)<br><input name="imap_user"/></label>-->
+<!--            </div>-->
+<!--            <div>-->
+<!--                <label>IMAP Password<br><input name="imap_password" type="password" required/></label>-->
+<!--            </div>-->
+
+
+<!--            <div>-->
+<!--                <label>SMTP Host (προαιρετικό)<br><input name="smtp_host"/></label>-->
+<!--            </div>-->
+<!--            <div>-->
+<!--                <label>SMTP Port<br><input name="smtp_port" type="number" value="465"/></label>-->
+<!--            </div>-->
+<!--            <div>-->
+<!--                <label>SMTP SSL<br>-->
+<!--                    <select name="smtp_ssl">-->
+<!--                        <option value="true" selected>Ναι</option>-->
+<!--                        <option value="false">Όχι</option>-->
+<!--                    </select>-->
+<!--                </label>-->
+<!--            </div>-->
+<!--            <div>-->
+<!--                <label>SMTP User (προαιρετικό)<br><input name="smtp_user"/></label>-->
+<!--            </div>-->
+<!--            <div>-->
+<!--                <label>SMTP Password (προαιρετικό)<br><input name="smtp_password" type="password"/></label>-->
+<!--            </div>-->
+
+
+<!--            <div style="align-self:end">-->
+<!--                <button class="btn btn-primary" type="submit">Προσθήκη</button>-->
+<!--            </div>-->
+<!--        </form>-->
+<!--        <div id="acc-msg" class="muted" style="margin-top: .5rem"></div>-->
+
+
+<!--        <table class="table" id="acc-table">-->
+<!--            <thead>-->
+<!--            <tr>-->
+<!--                <th>ID</th>-->
+<!--                <th>Όνομα</th>-->
+<!--                <th>Email</th>-->
+<!--                <th>IMAP</th>-->
+<!--                <th>SMTP</th>-->
+<!--                <th></th>-->
+<!--            </tr>-->
+<!--            </thead>-->
+<!--            <tbody></tbody>-->
+<!--        </table>-->
+<!--    </section>-->
+<!--</main>-->
+
+
 </body>
 <script defer src="{{ url_for('static', path='settings.js') }}"></script>
 {% endblock %}

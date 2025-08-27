@@ -105,7 +105,7 @@ body {
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 16px;
-    margin: 16px 0
+    margin: 0;
 }
 
 .table {
@@ -175,3 +175,256 @@ body {
     }
 }
 
+.banner {
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.banner.success {
+    background-color: #d1fae5; /* πράσινο pale */
+    color: #065f46; /* πράσινο dark */
+    border: 1px solid #10b981;
+}
+
+.banner.error {
+    background-color: #fee2e2; /* κόκκινο pale */
+    color: #991b1b; /* κόκκινο dark */
+    border: 1px solid #ef4444;
+}
+
+/*  After Settings separation  */
+/* Layout */
+.settings-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 8pt;
+    margin: 8pt;
+}
+
+.settings-sidebar {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.settings-sidebar-title {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.settings-link {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: #eef2ff;
+    text-decoration: none;
+}
+
+.settings-link.active, .settings-link:hover {
+    background: #eef2ff;
+    color: #111827;
+}
+
+.settings-content {
+    min-height: 400px;
+}
+
+.settings-content .card h2 {
+    margin-top: -6pt;
+}
+
+.settings-content .card h3 {
+    margin: -2pt 0 -2pt 0;
+}
+
+.settings-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.settings-header h1 {
+    margin: 0;
+}
+
+.settings-breadcrumb {
+    color: #6b7280;
+}
+
+/* Cards / forms / table ONLY inside Settings */
+.settings-layout .card {
+    background: #0f1624;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+/*.settings-layout .grid-form {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+}*/
+
+.settings-layout .grid-form .grid-span-2 {
+    grid-column: span 2;
+}
+
+
+
+.settings-layout .table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.settings-layout .table th, .settings-layout .table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Buttons ONLY in Settings (να μην πειράζουμε global) */
+.settings-layout .btn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.settings-layout .btn-primary {
+    background: #4f46e5;
+    color: #fff;
+    font-weight: 550;
+    font-size: medium;
+}
+
+.settings-layout .btn-primary:hover {
+    background: #4338ca;
+}
+
+.settings-layout .btn-secondary {
+    background: #90ec91;
+    color: #000;
+    font-weight: 550;
+    font-size: medium;
+}
+
+.settings-layout .btn-secondary:hover {
+    background: #3a7c2e;
+    color: #fff;
+}
+
+.settings-layout .btn-danger {
+    background: #ef4444;
+    color: #fff;
+}
+
+.settings-layout .btn-danger:hover {
+    background: #dc2626;
+}
+
+/* Banners (ίδια γλώσσα με admin users) */
+.banner {
+    padding: 10px 14px;
+    margin: 10px 0;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.banner.success {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #10b981;
+}
+
+.banner.error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #ef4444;
+}
+
+/* SETTINGS overrides (βάλ’ το στο ΤΕΛΟΣ του app.css) */
+.settings-layout .settings-content .card {
+    background: #0f1624 !important;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.settings-layout .settings-sidebar {
+    background: #0b1220;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.settings-layout .table th,
+.settings-layout .table td {
+    border-bottom: 1px solid var(--border);
+}
+
+
+/* === Settings · IMAP form layout === */
+
+/* 1) Grid που σπάει: 4 cols → 2 cols → 1 col */
+.settings-layout .grid-form {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(4, minmax(0, 1fr)); /* XL/L: 4 στήλες */
+}
+
+/* M: 2×2 */
+@media (max-width: 1200px) {
+    .settings-layout .grid-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* S: 1 στήλη (stacked) */
+@media (max-width: 640px) {
+    .settings-layout .grid-form {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 2) Label πάνω από input, ομοιόμορφο spacing */
+.settings-layout .grid-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-weight: 500; /* προαιρετικό */
+}
+
+/* Inputs να γεμίζουν το διαθέσιμο πλάτος */
+.settings-layout .grid-form input,
+.settings-layout .grid-form select {
+    width: 100%;
+    min-height: 36px;
+    max-width: 280px;   /* όριο πλάτους */
+}
+
+/* 3) Γραμμή πλήρους πλάτους (π.χ. τίτλοι/κουμπιά) */
+.settings-layout .grid-form .full-row {
+    grid-column: 1 / -1; /* πιάνει όλα τα columns σε κάθε breakpoint */
+}
+
+/* (προαιρετικό) ελαφρύ margin στους τίτλους της φόρμας */
+.settings-layout .grid-form h3 {
+    margin: 2px 0 6px 0;
+}
+
+
+/* Status bullet */
+.dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+.dot-gray   { background: #9ca3af; } /* default */
+.dot-green  { background: #22c55e; }
+.dot-red    { background: #ef4444; }

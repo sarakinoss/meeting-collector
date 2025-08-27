@@ -150,14 +150,18 @@ def extract_meetings_for_account(*,
 
                     #  Start parsing mail content with header infos
                     if ids:
-                        messages = mail.fetch(ids, ["BODY.PEEK[]"])
+                        messages = mail.fetch(ids, ["BODY.PEEK[]", "INTERNALDATE"])
                         for msg_id, body_data in messages.items():
                             body = body_data.get(b'BODY[]') or body_data.get(b'BODY.PEEK[]')
                             if not body:
                                 logging.warning(f"⚠️ No body for message ID {msg_id}")
                                 continue
 
+                            internal_dt = body_data.get(b'INTERNALDATE')  # datetime ή None
+
                             msg = email.message_from_bytes(body)
+
+
 
                             # Metadata
 
@@ -255,7 +259,7 @@ def extract_meetings_for_account(*,
                                         row.subject = subject
                                         row.sender = sender
                                         row.recipients = msg_attendants
-                                        row.internaldate = None  # δεν το έχουμε εδώ από IMAPClient
+                                        row.internaldate = internal_dt  # δεν το έχουμε εδώ από IMAPClient
                                         row.received_at = received_dt  # από το Date header
                                         row.has_calendar = True  # εδώ είμαστε σε mail με meeting link
                                         row.eml_path = eml_path  # ★ σημαντικό για preview/download

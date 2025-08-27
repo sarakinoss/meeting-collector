@@ -20,51 +20,10 @@ def _parse_dt(s: Optional[str]) -> Optional[datetime]:
     except Exception:
         return None
 
-def store_meetings_to_db(meeting_list: Iterable[dict], db: Session | None = None) -> None:
-    """
-    Upsert meetings into the SQLAlchemy Meeting table.
-    Compatible with the old call site that passed a list of dicts coming from the parser.
-    """
-    own_session = False
-    if db is None:
-        db = SessionLocal()
-        own_session = True
-
-    try:
-        for m in meeting_list:
-            uid = m.get("meet_id") or (m.get("meet_link") or "").strip() or None
-            if not uid:
-                # skip rows without any stable id/link
-                continue
-
-            # find existing by uid
-            row = db.execute(select(Meeting).where(Meeting.uid == uid)).scalar_one_or_none()
-            if row is None:
-                row = Meeting(uid=uid)
-                db.add(row)
-
-            # map fields
-            row.platform   = m.get("meet_platform")
-            row.title      = m.get("msg_subject") or m.get("title")
-            row.link       = m.get("meet_link")
-            row.start      = _parse_dt(m.get("meet_date"))
-            row.end        = _parse_dt(m.get("meet_end_date"))
-            row.organizer  = m.get("msg_sender")
-            row.attendees  = m.get("meet_attendants") or m.get("msg_attendants")
-            row.parse_reason  = m.get("parse_reason")
-            row.parse_snippet = m.get("parse_snippet")
-            row.last_msg_datetime = _parse_dt(m.get("msg_date"))
-
-        db.commit()
-    finally:
-        if own_session:
-            db.close()
-
-
 # def store_meetings_to_db(meeting_list: Iterable[dict], db: Session | None = None) -> None:
 #     """
-#     Upsert meetings in the Meeting table και δέσε τα σχετικά emails (MeetingEmail).
-#     Δουλεύει με την ίδια λίστα dicts από τον parser.
+#     Upsert meetings into the SQLAlchemy Meeting table.
+#     Compatible with the old call site that passed a list of dicts coming from the parser.
 #     """
 #     own_session = False
 #     if db is None:
@@ -75,15 +34,16 @@ def store_meetings_to_db(meeting_list: Iterable[dict], db: Session | None = None
 #         for m in meeting_list:
 #             uid = m.get("meet_id") or (m.get("meet_link") or "").strip() or None
 #             if not uid:
+#                 # skip rows without any stable id/link
 #                 continue
 #
-#             # find/create meeting
+#             # find existing by uid
 #             row = db.execute(select(Meeting).where(Meeting.uid == uid)).scalar_one_or_none()
 #             if row is None:
 #                 row = Meeting(uid=uid)
 #                 db.add(row)
 #
-#             # map πεδία meeting
+#             # map fields
 #             row.platform   = m.get("meet_platform")
 #             row.title      = m.get("msg_subject") or m.get("title")
 #             row.link       = m.get("meet_link")
@@ -95,34 +55,105 @@ def store_meetings_to_db(meeting_list: Iterable[dict], db: Session | None = None
 #             row.parse_snippet = m.get("parse_snippet")
 #             row.last_msg_datetime = _parse_dt(m.get("msg_date"))
 #
-#             # βεβαιώσου ότι υπάρχει row.id πριν φτιάξουμε σχέσεις
-#             db.flush()
-#
-#             # δέσιμο σχετικών emails (από msg_id ή related_messages)
-#             related = m.get("related_messages")
-#             if not related:
-#                 mid = m.get("msg_id")
-#                 related = [mid] if mid else []
-#
-#             for message_id in related:
-#                 if not message_id:
-#                     continue
-#                 em = db.execute(select(Email).where(Email.message_id == message_id)).scalar_one_or_none()
-#                 if not em:
-#                     continue
-#                 exists = db.execute(
-#                     select(MeetingEmail).where(
-#                         MeetingEmail.meeting_id == row.id,
-#                         MeetingEmail.email_id == em.id,
-#                     )
-#                 ).first()
-#                 if not exists:
-#                     db.add(MeetingEmail(meeting_id=row.id, email_id=em.id, role=None))
-#
 #         db.commit()
 #     finally:
 #         if own_session:
 #             db.close()
+
+
+def store_meetings_to_db(meeting_list: Iterable[dict], db: Session | None = None) -> None:
+    """
+    Upsert meetings in the Meeting table και δέσε τα σχετικά emails (MeetingEmail).
+    Δουλεύει με την ίδια λίστα dicts από τον parser.
+    """
+    own_session = False
+    if db is None:
+        db = SessionLocal()
+        own_session = True
+
+    try:
+        for m in meeting_list:
+            uid = m.get("meet_id") or (m.get("meet_link") or "").strip() or None
+            if not uid:
+                continue
+
+            # find/create meeting
+            row = db.execute(select(Meeting).where(Meeting.uid == uid)).scalar_one_or_none()
+            if row is None:
+                row = Meeting(uid=uid)
+                db.add(row)
+
+            # map πεδία meeting
+            row.platform   = m.get("meet_platform")
+            row.title      = m.get("msg_subject") or m.get("title")
+            row.link       = m.get("meet_link")
+            row.start      = _parse_dt(m.get("meet_date"))
+            row.end        = _parse_dt(m.get("meet_end_date"))
+            row.organizer  = m.get("msg_sender")
+            row.attendees  = m.get("meet_attendants") or m.get("msg_attendants")
+            row.parse_reason  = m.get("parse_reason")
+            row.parse_snippet = m.get("parse_snippet")
+            row.last_msg_datetime = _parse_dt(m.get("msg_date"))
+
+            # βεβαιώσου ότι υπάρχει row.id πριν φτιάξουμε σχέσεις
+            db.flush()
+
+
+
+            # helper: βάλε/ενημέρωσε δεσμό με συγκεκριμένο role
+            def _link_role(message_id: str | None, role: str):
+                if not message_id:
+                    return
+                em = db.execute(select(Email).where(Email.message_id == message_id)).scalar_one_or_none()
+                if not em:
+                    return
+                # υπάρχει ήδη ο συγκεκριμένος δεσμός;
+                me = db.execute(
+                    select(MeetingEmail).where(
+                        MeetingEmail.meeting_id == row.id,
+                        MeetingEmail.email_id == em.id
+                    )
+                ).scalar_one_or_none()
+                if not me:
+                    me = MeetingEmail(meeting_id=row.id, email_id=em.id, role=role)
+                    db.add(me)
+                else:
+                    me.role = role
+                # καθάρισε τυχόν άλλο email με το ίδιο role για το ίδιο meeting
+                db.query(MeetingEmail) \
+                    .filter(MeetingEmail.meeting_id == row.id,
+                            MeetingEmail.role == role,
+                            MeetingEmail.email_id != em.id) \
+                    .update({MeetingEmail.role: None})
+
+            # ρόλοι: latest = m["msg_id"], date = m.get("msg_id_date")
+            _link_role(m.get("msg_id"), role="latest")
+            _link_role(m.get("msg_id_date"), role="date")
+
+
+
+
+
+            # δέσιμο σχετικών emails (από msg_id ή related_messages)
+            related = m.get("related_messages") or ([m.get("msg_id")] if m.get("msg_id") else [])
+            for message_id in related:
+                if not message_id:
+                    continue
+                em = db.execute(select(Email).where(Email.message_id == message_id)).scalar_one_or_none()
+                if not em:
+                    continue
+                exists = db.execute(
+                    select(MeetingEmail).where(
+                        MeetingEmail.meeting_id == row.id,
+                        MeetingEmail.email_id == em.id,
+                    )
+                ).first()
+                if not exists:
+                    db.add(MeetingEmail(meeting_id=row.id, email_id=em.id, role=None))
+        db.commit()
+    finally:
+        if own_session:
+            db.close()
 
 
 # def get_all_meetings_as_dict(db: Session | None = None) -> list[dict]:

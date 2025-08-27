@@ -6,9 +6,16 @@
     const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
     // ---- API endpoints (προσαρμόζεις αν τα έχεις με άλλο path)
-    const API_ACCOUNTS = "api/accounts";      // GET -> [{id,email,parse_enabled,last_full_parse_at,last_incremental_parse_at}, ...]
+    const API_ACCOUNTS = "api/v1/accounts"; // GET -> [{id,email,parse_enabled,last_full_parse_at,last_incremental_parse_at}, ...]
+    const API_PARSE    = "/api/v1/meetings/actions/parse";   // κοινό endpoint
+
     const API_UPDATE   = "/update";         // POST -> {status:"update_triggered"}
     const API_FULL     = "/full-parse";     // POST -> {status:"full_parse_triggered"}
+
+    // Αν θες το legacy shape για το grid:
+    const API_MEETINGS = "/api/v1/meetings";      // ίδιο σχήμα με παλιό /meetings
+// ή, αν θες το “πλουσιότερο”:
+    const API_MEETINGS_DB = "/api/v1/meetings/db";
 
 
     const sidePanel   = $('#sidePanel');
@@ -230,7 +237,7 @@
         const status = $('#status');
         if (status) status.textContent = 'loading…';
         try {
-            const res = await fetch('/meetings');
+            const res = await fetch('/api/v1/meetings');
             if (!res.ok) throw new Error('HTTP ' + res.status);
             ALL = await res.json();
             EVENTS = transform(ALL);
@@ -267,7 +274,7 @@
     // ---- NEW: poll /status and toggle loader/progress ----
     async function pollStatus() {
         try {
-            const res = await fetch('/status');
+            const res = await fetch('/api/v1/meetings/status');
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const s = await res.json();
             const loader = $('#loader');
@@ -574,7 +581,7 @@
                 data.enabled = true;
 
                 try {
-                    const res = await fetch('/accounts', {
+                    const res = await fetch('/api/v1/accounts', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify(data)
@@ -601,7 +608,10 @@
             const b = document.getElementById("btnUpdate");
             toggleBusy(b, true);
             try {
-                await fetch(API_UPDATE, { method: "POST" });
+                // await fetch(API_UPDATE, { method: "POST" });
+
+                await fetch(`${API_PARSE}?force_full=false`, { method: "POST" });
+
                 // Μετά από update, κάνε refresh τα meetings
                 await reloadMeetings?.();
             } catch (e) {
@@ -616,7 +626,10 @@
             if (!confirm("Run FULL parse for all accounts?")) return;
             toggleBusy(b, true);
             try {
-                await fetch(API_FULL, { method: "POST" });
+                // await fetch(API_FULL, { method: "POST" });
+
+                await fetch(`${API_PARSE}?force_full=true`, { method: "POST" });
+
                 // Μετά από full-parse, κάνε refresh τα meetings
                 await reloadMeetings?.();
             } catch (e) {
