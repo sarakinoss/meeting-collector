@@ -26,10 +26,9 @@ from sqlalchemy import select
 from app.db.session import get_db
 from app.db.models import MailAccount, User
 from app.api.deps import require_user
-from app.core.crypto import decrypt  # <- ΠΡΟΣΟΧΗ: import decryp
+from app.core.crypto import decrypt
 
 router = APIRouter(prefix="/api/v1/accounts", tags=["Accounts"])
-
 
 class ImapTestIn(BaseModel):
     email: str
@@ -124,7 +123,8 @@ async def test_connection(data: ImapTestIn):
         # στείλε «καθαρό» μήνυμα για να το δει το banner σου
         raise HTTPException(status_code=400, detail=f"{type(e).__name__}: {e}")
 
-
+# Used to check credentials before submitting new IMAP account and
+# afterwards to show connection state on table list.
 @router.post("/{account_id}/test-connection")
 async def test_connection_for_account(
         account_id: int,

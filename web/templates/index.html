@@ -18,61 +18,25 @@
 
 
 {% block content %}
-<body class="min-h-screen grid grid-rows-[auto,1fr] bg-slate-50 text-slate-900">
+<body class="min-h-screen grid grid-rows-[auto,1fr] bg-slate-50 text-slate-900 overflow-x-hidden">
 
 <!-- Header -->
-<header class="border-b bg-white">
-    <div class="w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-3">
-
-        <!--         Side panel toggle -->
-        <!--        <button id="btnSideToggle" class="p-2 rounded-md hover:bg-slate-100 lg:hidden" aria-label="Toggle filters">-->
-        <!--            &lt;!&ndash; universal hamburger icon &ndash;&gt;-->
-        <!--            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"-->
-        <!--                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">-->
-        <!--                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>-->
-        <!--            </svg>-->
-        <!--        </button>-->
-
-        <!--        <button id="btnSideToggle" class="p-2 rounded-md hover:bg-slate-100" aria-label="Toggle filters">-->
-        <!--            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"-->
-        <!--                 viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">-->
-        <!--                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>-->
-        <!--            </svg>-->
-        <!--        </button>-->
-
-        <button id="btnSideToggle" class="p-2 rounded-md hover:bg-slate-100" aria-label="Άνοιγμα φίλτρων ημερολογίου">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="2" class="h-7 w-7">
-                <!-- Εξωτερικό ημερολόγιο -->
-                <rect x="3" y="4" width="18" height="17" rx="2" ry="2"/>
-                <!-- Πάνω μπάρα του ημερολογίου -->
-                <line x1="3" y1="9.5" x2="21" y2="9.5"/>
-                <!-- Κρίκοι (δαχτυλίδια) του ημερολογίου -->
-                <line x1="8" y1="2.5" x2="8" y2="6.5"/>
-                <line x1="16" y1="2.5" x2="16" y2="6.5"/>
-
-                <!-- Χωνί (φίλτρο) μέσα στο σώμα του ημερολογίου -->
-                <!-- Χείλος χωνιού -->
-                <path d="M8 12h8" stroke-linecap="round"/>
-                <!-- Πλευρές χωνιού προς το κέντρο -->
-                <path d="M8 12l4 4m4-4l-4 4" stroke-linecap="round" stroke-linejoin="round"/>
-                <!-- Λαιμός χωνιού -->
-                <path d="M12 15v3" stroke-linecap="round"/>
-            </svg>
-        </button>
+<header class="fixed top-0 inset-x-0 z-50 border-b bg-white h-16">
+    <div class="w-full h-16 px-4 sm:px-6 lg:px-8 flex items-center gap-3">
 
         <!-- Δυναμικό ημερολόγιο -->
-        <div id="calendarIcon" class="w-12 h-12 flex flex-col items-center justify-center
-     border rounded-lg shadow bg-white text-center">
+        <div id="calendarIcon" class="shrink-0 w-12 aspect-square grid grid-rows-[16px,1fr]
+            items-center justify-items-center border rounded-lg shadow bg-white text-center">
             <div class="w-full bg-red-500 text-white text-xs font-bold py-1 rounded-t">ΜΗΝΑΣ</div>
             <div id="calendarDay" class="text-lg font-bold">--</div>
         </div>
 
-        <h1 href="/" class="text-2xl font-semibold">Meeting Collector</h1>
+        <a href="/" class="leading-tight hover:opacity-90">
+            <h1 class="text-xl font-semibold">
+                Meeting<br/>Collector
+            </h1>
+        </a>
 
-
-        <!-- keeps counts (events/links/dates) -->
-        <span id="status" class="ml-2 text-sm text-slate-500">ready</span>
 
         <!-- loader shown when /status says running -->
         <div id="loader" class="ml-3 hidden items-center gap-2 text-slate-600">
@@ -97,7 +61,7 @@
         <!--        </div>-->
 
         <!-- Toolbar (Header right) -->
-        <div class="flex items-center gap-2">
+        <!--<div class="flex items-center gap-2">
             <button id="btnRefresh" class="px-3 py-1.5 rounded-md bg-slate-800 text-white hover:bg-slate-700">
                 Refresh
             </button>
@@ -107,11 +71,11 @@
             <button id="btnFullParse" class="px-3 py-1.5 rounded-md bg-amber-600 text-white hover:bg-amber-500">
                 Full-Parse
             </button>
-        </div>
+        </div>-->
 
-        <nav class="flex items-center gap-3">
+        <!--<nav class="flex items-center gap-3">
             {% if user %}
-            <!-- Avatar dropdown (CSS-only με <details>) -->
+            &lt;!&ndash; Avatar dropdown (CSS-only με <details>) &ndash;&gt;
             <details class="user-menu">
                 <summary class="avatar" title="{{ user.username }}">
                     {{ (user.username or 'U')[:1]|upper }}
@@ -127,112 +91,146 @@
             {% else %}
             <a href="/auth/login" class="btn">Σύνδεση</a>
             {% endif %}
-        </nav>
+        </nav>-->
+
+        <!-- Header Right wrapper που ήδη έχεις -->
+        <div id="headerRight" class="flex items-center gap-4">
+            <div id="headerActions" class="flex items-center gap-2">
+                <button id="btnRefresh" class="px-3 py-1.5 rounded-md bg-slate-800 text-white hover:bg-slate-700">
+                    Refresh
+                </button>
+                <button id="btnUpdate" class="px-3 py-1.5 rounded-md bg-blue-600  text-white hover:bg-blue-500">Update
+                </button>
+                <button id="btnFullParse" class="px-3 py-1.5 rounded-md bg-amber-600 text-white hover:bg-amber-500">
+                    Full-Parse
+                </button>
+            </div>
+
+            <nav id="accountNav" class="flex items-center gap-3">
+                {% if user %}
+                <details class="user-menu">
+                    <summary class="avatar" title="{{ user.username }}">{{ (user.username or 'U')[:1]|upper }}</summary>
+                    <div class="menu">
+                        <a href="/auth/settings">Ρυθμίσεις</a>
+                        {% if user.is_admin %}<a href="/auth/admin/users">Χρήστες</a>{% endif %}
+                        <a href="/auth/logout">Αποσύνδεση</a>
+                    </div>
+                </details>
+                {% else %}
+                <a href="/auth/login" class="btn">Σύνδεση</a>
+                {% endif %}
+            </nav>
+
+            <!-- NEW: hamburger (φαίνεται μόνο σε mobile) -->
+            <button id="btnHeaderMenu"
+                    class="p-2 rounded-md border hover:bg-slate-50 md:hidden"
+                    aria-label="Menu">
+                <!-- απλό icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                     viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- NEW: popover panel που θα γεμίσουμε μετακινώντας τα ίδια nodes -->
+        <div id="headerMenuPanel"
+             class="hidden absolute right-0 top-14 z-[120] w-64
+            rounded-xl border bg-white shadow-lg p-3">
+            <div id="headerMenuContent" class="flex flex-col gap-3"></div>
+        </div>
+
+
+    </div>
+
+    <!-- Thin header loader (indeterminate)
+    <div id="headerLoader"
+         class="hidden absolute left-4 right-4 bottom-2 h-[3px] rounded-full overflow-hidden z-50">
+        <div class="bar"></div>
+    </div>-->
+
+    <!-- Thin header loader (indeterminate), sits exactly at the bottom -->
+    <div id="headerLoader" class="hidden absolute inset-x-0 bottom-0 h-[3px] z-30 pointer-events-none">
+        <div class="mx-4 sm:mx-6 lg:mx-8 h-full rounded-full bg-slate-900/10 overflow-hidden">
+            <div class="bar h-full"></div>
+        </div>
     </div>
 
 </header>
 
-<main class="w-full p-4 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 overflow-hidden">
+
+<button id="btnSideToggle"
+        class="fixed bottom-4 left-4 z-50
+               rounded-full shadow px-4 py-4 bg-slate-800 text-white
+               hover:bg-slate-700 focus:outline-none focus:ring"
+        aria-label="Άνοιγμα/Κλείσιμο φίλτρων">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+         viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h7"/>
+    </svg>
+    <!--<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-7 w-7">
+        &lt;!&ndash; Εξωτερικό ημερολόγιο &ndash;&gt;
+        <rect x="3" y="4" width="18" height="17" rx="2" ry="2"/>
+        &lt;!&ndash; Πάνω μπάρα του ημερολογίου &ndash;&gt;
+        <line x1="3" y1="9.5" x2="21" y2="9.5"/>
+        &lt;!&ndash; Κρίκοι (δαχτυλίδια) του ημερολογίου &ndash;&gt;
+        <line x1="8" y1="2.5" x2="8" y2="6.5"/>
+        <line x1="16" y1="2.5" x2="16" y2="6.5"/>
+
+        &lt;!&ndash; Χωνί (φίλτρο) μέσα στο σώμα του ημερολογίου &ndash;&gt;
+        &lt;!&ndash; Χείλος χωνιού &ndash;&gt;
+        <path d="M8 12h8" stroke-linecap="round"/>
+        &lt;!&ndash; Πλευρές χωνιού προς το κέντρο &ndash;&gt;
+        <path d="M8 12l4 4m4-4l-4 4" stroke-linecap="round" stroke-linejoin="round"/>
+        &lt;!&ndash; Λαιμός χωνιού &ndash;&gt;
+        <path d="M12 15v3" stroke-linecap="round"/>
+    </svg>-->
+
+</button>
 
 
-    <!--    &lt;!&ndash;  Left Side Panel  &ndash;&gt;-->
-    <!--    <aside class="lg:col-span-1 bg-white rounded-2xl shadow p-4 h-full overflow-auto">-->
-    <!--        &lt;!&ndash; Filters &ndash;&gt;-->
-    <!--        <h2 class="text-sm font-semibold text-slate-700 tracking-wide">Filters</h2>-->
+<main id="appMain" class="pt-16 w-full p-4 grid grid-cols-1 gap-4 overflow-hidden
+         transition-[margin,width] duration-200
+         min-h-[calc(100vh-4rem)]">
 
-    <!--        <div class="mt-4 space-y-4">-->
-
-    <!--            <div class="mt-6">&lt;!&ndash; Mail List &ndash;&gt;-->
-    <!--                &lt;!&ndash;  <aside class="h-full overflow-y-auto">&ndash;&gt;-->
-    <!--                <label class="text-xs font-semibold text-slate-500">Email Accounts</label>-->
-    <!--                <ul id="accountsList" class="mail-accounts"></ul>-->
-    <!--                &lt;!&ndash;    </aside>&ndash;&gt;-->
-    <!--            </div>-->
-
-    <!--            <hr/>-->
-
-    <!--            <div class="mt-6">-->
-    <!--                <label class="text-xs font-semibold text-slate-500">Search (subject, sender, attendees)</label>-->
-    <!--                <input id="q" type="search" placeholder="Type to filter…"-->
-    <!--                       class="mt-1 w-full rounded-xl border px-3 py-2 text-sm"/>-->
-    <!--            </div>-->
-
-    <!--            <hr/>-->
-
-    <!--            <div>-->
-    <!--                <label class="text-xs font-semibold text-slate-500">Platforms</label>-->
-    <!--                <div class="mt-2 flex flex-wrap gap-2 text-sm">-->
-    <!--                    <label class="inline-flex items-center gap-1">-->
-    <!--                        <input type="checkbox" class="platform" value="zoom" checked/>-->
-    <!--                        <span class="badge badge-zoom">Zoom</span>-->
-    <!--                    </label>-->
-    <!--                    <label class="inline-flex items-center gap-1">-->
-    <!--                        <input type="checkbox" class="platform" value="teams"-->
-    <!--                                                                         checked/> <span-->
-    <!--                            class="badge badge-teams">Teams</span></label>-->
-    <!--                    <label class="inline-flex items-center gap-1"><input type="checkbox" class="platform" value="google"-->
-    <!--                                                                         checked/> <span class="badge badge-google">Google</span></label>-->
-    <!--                </div>-->
-    <!--            </div>-->
-
-    <!--            <hr/>-->
-
-    <!--            <div class="mt-2 flex flex-wrap gap-2 text-sm">-->
-    <!--                <label class="text-xs font-semibold text-slate-500">Search (subject, sender, attendees)</label>-->
-    <!--                <div>-->
-    <!--                    <label class="block text-xs text-slate-500">From</label>-->
-    <!--                    <input id="from" type="date" class="mt-1 w-full rounded-xl border px-3 py-2 text-sm"/>-->
-    <!--                </div>-->
-    <!--                <div>-->
-    <!--                    <label class="block text-xs text-slate-500">To</label>-->
-    <!--                    <input id="to" type="date" class="mt-1 w-full rounded-xl border px-3 py-2 text-sm"/>-->
-    <!--                </div>-->
-    <!--            </div>-->
-
-    <!--            <hr/>-->
-
-    <!--            <div class="pt-2">-->
-    <!--                <button id="btn-clear" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Clear filters-->
-    <!--                </button>-->
-    <!--            </div>-->
-    <!--&lt;!&ndash;        </div>-->
-
-    <!--        <div class="mt-6">&ndash;&gt;-->
-
-    <!--            <hr/>-->
-    <!--            <h3 class="text-xs font-semibold text-slate-500">Legend</h3>-->
-    <!--            <div class="mt-2 flex flex-col gap-2 text-sm">-->
-    <!--                <div><span class="badge badge-zoom">Zoom</span> <span class="text-slate-500">zoom.us</span></div>-->
-    <!--                <div><span class="badge badge-teams">Teams</span> <span-->
-    <!--                        class="text-slate-500">teams.microsoft.com</span></div>-->
-    <!--                <div><span class="badge badge-google">Google Meet</span> <span-->
-    <!--                        class="text-slate-500">meet.google.com</span></div>-->
-    <!--            </div>-->
-    <!--        </div>-->
-
-    <!--    </aside>-->
-
-    <!-- Overlay (click-to-close) -->
-    <div id="sideOverlay" class="fixed inset-0 bg-black/30 hidden z-30"></div>
-
-    <!-- Side Panel -->
-    <!--    <aside id="sidePanel"-->
-    <!--           class="fixed inset-y-0 left-0 z-40 w-80 bg-white rounded-none lg:rounded-2xl lg:static lg:w-full-->
-    <!--              shadow h-full overflow-auto transform -translate-x-full lg:translate-x-0-->
-    <!--              transition-transform duration-200">-->
-    <!-- Side Panel -->
     <aside id="sidePanel"
-           class="fixed inset-y-0 left-0 z-40 w-80 bg-white shadow h-full overflow-auto
-              transform -translate-x-full transition-transform duration-200 rounded-none">
+           class="fixed left-0 top-16 z-40 w-full lg:w-80
+                      h-[calc(100vh-4rem)] bg-white shadow overflow-auto
+                      transform -translate-x-full transition-transform duration-200">
+
+        <!-- keeps counts (events/links/dates) -->
+        <!--        <span id="status" class="ml-2 text-sm text-slate-500">ready</span>-->
+
+        <span id="status" class="status-chips w-full justify-center mt-4">ready</span>
+
 
         <!-- Filters -->
-        <div class="p-4">
+        <div class="p-3">
             <h2 class="text-sm font-semibold text-slate-700 tracking-wide">Filters</h2>
 
             <div class="mt-4 space-y-4">
-                <div class="mt-6">
+
+
+                <div class="">
+
                     <label class="text-xs font-semibold text-slate-500">Email Accounts</label>
-                    <ul id="accountsList" class="mail-accounts"></ul>
+                    <!-- Header των δύο “στηλών” (Full / Incremental) -->
+                    <div id="accColsHeader"
+                         class="hidden mt-1 ml-6 mr-2 grid grid-cols-2 text-[11px] font-semibold tracking-wide text-slate-500 " >
+                        <span>Full Parse</span>
+                        <span>Incremental</span>
+                    </div>
+
+                    <hr/>
+
+                    <ul id="accountsList" class="mail-accounts max-h-25 overflow-y-auto pr-1"></ul>
+
+                    <label class="mt-2 inline-flex items-center gap-2 text-sm text-slate-600">
+                        <input id="showNoDate" type="checkbox"/>
+                        <span style="font-size:small;">Include messages without a date<br/>(table view only)</span>
+                    </label>
+
                 </div>
 
                 <hr/>
@@ -283,7 +281,7 @@
                 </div>
             </div>
 
-            <div class="mt-6">
+            <div class="mt-6 text-right">
                 <h3 class="text-xs font-semibold text-slate-500">Legend</h3>
                 <div class="mt-2 flex flex-col gap-2 text-sm">
                     <div><span class="badge badge-zoom">Zoom</span> <span class="text-slate-500">zoom.us</span></div>
@@ -293,13 +291,15 @@
                     </div>
                 </div>
             </div>
+
+
         </div>
     </aside>
 
 
     <!-- Main content -->
     <!--      <section class="lg:col-span-3 space-y-4">-->
-    <section class="col-span-full flex flex-col min-h-0 gap-4">
+    <section class="col-span-full flex flex-col min-h-0 gap-4 mt-2">
 
         <!-- Tabs -->
         <div class="rounded-2xl bg-white p-2 shadow flex gap-2">
@@ -309,16 +309,14 @@
             <button data-tab="table" class="tab-btn rounded-xl px-4 py-2 text-sm hover:bg-slate-50">
                 Table
             </button>
-            <label class="mt-2 inline-flex items-center gap-2 text-sm">
-                <input id="showNoDate" type="checkbox"/>
-                <span>Include messages without a date (table view only)</span>
-            </label>
+
         </div>
 
         <!-- Calendar -->
         <div id="calendar-card" class="rounded-2xl bg-white p-4 shadow flex-1 flex flex-col min-h-0">
             <div id="calendar" class="flex-1 min-h-0"></div>
         </div>
+
 
         <!-- Table -->
         <!--<div id="table-card" class="hidden rounded-2xl bg-white p-4 shadow">
@@ -340,15 +338,7 @@
                 </table>
             </div>
         </div>
-
-        <!--        <div>-->
-
-
-        <!--        <button id="btnRunFullParse">Run Full Parse</button>-->
-        <!--        </div>-->
-
     </section>
-
 </main>
 
 <!-- Drawer (event details) -->
@@ -362,9 +352,6 @@
         <div id="drawer-body" class="mt-4 space-y-2 text-sm"></div>
     </div>
 </div>
-
-<!-- Global app logic (φορτώνεται αφού υπάρχουν όλα τα DOM + CDNs) -->
-<!--<script defer src="{{ url_for('static', path='main.js') }}"></script>-->
 
 </body>
 {% endblock %}

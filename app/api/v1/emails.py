@@ -16,6 +16,10 @@ from app.api.deps import require_user  # προστατεύουμε τα αρχ�
 
 router = APIRouter(prefix="/api/v1/emails", tags=["Emails"])
 
+# TODO Remove duplicate methods and use them.
+# TODO Comment code.
+
+
 def _safe_file_response(path: str) -> FileResponse:
     p = Path(path).resolve()
     if not p.exists() or not p.is_file():

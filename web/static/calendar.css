@@ -71,3 +71,142 @@
 .user-menu .menu a:hover {
     background: #1b2433
 }
+
+
+/* ===== Header Loader (indeterminate line) ===== */
+
+#headerLoader {
+    background: rgba(15, 23, 42, 0.08); /* light track, σαν slate-900/opacity */
+    border-radius: 9999px;
+    position: absolute; /* ήδη από τις κλάσεις */
+    pointer-events: none;
+}
+
+/* Η "τρέχουσα" κινούμενη μπάρα */
+#headerLoader .bar {
+    position: absolute;
+    left: -30%;
+    width: 30%;
+    height: 100%;
+    border-radius: inherit;
+    animation: header-indeterminate 1.1s infinite linear;
+}
+
+/* Χρώματα ανά event */
+#headerLoader.dark   .bar { background: #1f2937; } /* slate-800 (Refresh) */
+#headerLoader.blue   .bar { background: #2563eb; } /* blue-600  (Update)  */
+#headerLoader.orange .bar { background: #d97706; } /* amber-600 (Full-Parse) */
+
+@keyframes header-indeterminate {
+    0%   { transform: translateX(0%);   }
+    100% { transform: translateX(400%); }
+}
+
+/* ====== Hamburger panel layout overrides ====== */
+/* ===== Hamburger panel polish ===== */
+
+/* Buttons στο panel: full-width, ίδια ύψη */
+#headerMenuPanel #headerActions{
+    display:grid; grid-template-columns:1fr; gap:10px;
+}
+#headerMenuPanel #headerActions > button{
+    width:100%; display:inline-flex; justify-content:center; align-items:center;
+    padding:10px 12px; border-radius:0.75rem; font-weight:600;
+}
+
+/* Account row (summary chip): όχι άσπρο, κρύψε το αρχικό γράμμα */
+#headerMenuPanel .user-menu{ width:100%; }
+#headerMenuPanel .user-menu > summary{
+    /* layout */
+    width:100%; display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:0.75rem;
+    border:1px solid #e2e8f0;            /* slate-200 */
+    background:#f1f5f9;                   /* slate-100 */
+    color:transparent;                    /* κρύψε το γράμμα μέσα στο <summary> */
+    position:relative;
+}
+/* avatar κύκλος */
+#headerMenuPanel .user-menu > summary::before{
+    content:""; flex:0 0 28px; width:28px; height:28px; border-radius:9999px;
+    background:#0f172a;                    /* slate-900 */
+}
+/* όνομα με ellipsis (από title="...") */
+#headerMenuPanel .user-menu > summary::after{
+    content:attr(title);
+    color:#0f172a;                         /* σκουρόχρωμο κείμενο */
+    font-weight:600; flex:1 1 auto;
+    overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+
+/* Dropdown menu: πιο σκοτεινό όταν ανοίγει */
+#headerMenuPanel .user-menu > .menu{
+    position:static; display:none; margin-top:8px; width:100%;
+    border-radius:12px; border:1px solid #0b1220;
+    background:#0f172a;                    /* dark background */
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+}
+#headerMenuPanel .user-menu[open] > .menu{ display:block; }
+
+/* Links μέσα στο dark menu */
+#headerMenuPanel .user-menu .menu a{
+    display:block; padding:10px 12px; border-radius:0.75rem;
+    color:#e5e7eb;                         /* text: slate-200 */
+}
+#headerMenuPanel .user-menu .menu a:hover{
+    background:#1f2937;                    /* slate-800 hover */
+}
+
+/* Αν δεν υπάρχει logged user (κουμπί Σύνδεση) κράτα το ομοιόμορφο */
+#headerMenuPanel #accountNav .btn{
+    width:100%; display:inline-flex; justify-content:center; align-items:center;
+    padding:10px 12px; border-radius:0.75rem; font-weight:600;
+    border:1px solid #e2e8f0; background:#f1f5f9; color:#0f172a;
+}
+#headerMenuPanel #accountNav .btn:hover{ background:#e2e8f0; }
+
+
+
+/* Compact status chips (one-line, very low height) */
+.status-chips{
+    display:flex;
+    align-items:center;
+    justify-content:center;   /* <-- κεντράρισμα οριζόντια */
+    gap:6px;
+    width:100%;               /* να “πιάσει” όλο το πλάτος του sidebar */
+    margin:0 auto;            /* safety */
+    font-size:12px;
+    line-height:1;
+    color:#64748b;            /* slate-500 */
+    white-space:nowrap;       /* κρατά μία γραμμή */
+}
+
+.status-chips .chip{
+    display:inline-flex; align-items:center; gap:4px;
+    padding:2px 6px; border-radius:9999px;
+    background: rgba(100,116,139,0.08);  /* subtle bg */
+}
+.status-chips .chip b{ font-weight:600; color:#0f172a; } /* slate-900 */
+
+.status-chips .dot{
+    width:6px; height:6px; border-radius:9999px; background:#94a3b8; /* slate-400 */
+}
+
+/* optional: tiny tints per metric */
+.status-chips .events { background:rgba(15,23,42,0.08);}   /* dark tint */
+.status-chips .links  { background:rgba(37,99,235,0.10);}  /* blue tint */
+.status-chips .dates  { background:rgba(245,158,11,0.12);} /* amber tint */
+
+.status-chips .events .dot{ background:#0f172a;}  /* slate-900 */
+.status-chips .links  .dot{ background:#2563eb;}  /* blue-600  */
+.status-chips .dates  .dot{ background:#d97706;}  /* amber-600 */
+
+
+#mobileToast {
+    transition: transform .18s ease, opacity .18s ease;
+    transform: translateY(8px);
+    opacity: 0;
+}
+#mobileToast.show {
+    transform: translateY(0);
+    opacity: 1;
+}

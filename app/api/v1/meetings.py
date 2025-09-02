@@ -1,6 +1,7 @@
 # app/api/v1/meetings.py
 from __future__ import annotations
 import threading
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,12 +9,34 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_user
-from app.db.session import get_db
-from app.db.models import JobState, Meeting, Email, MeetingEmail
+from app.db.session import get_db, SessionLocal
+from app.db.models import JobState, JobStatus, Meeting, Email, MeetingEmail
 from app.db.crud import get_all_meetings_as_dict, store_meetings_to_db
 from email_parser import extract_meetings_all_accounts
 
 router = APIRouter(prefix="/api/v1/meetings", tags=["Meetings"])
+
+def _get_or_create_job(db: Session) -> JobState:
+    js = db.query(JobState).first()
+    if not js:
+        js = JobState()
+        db.add(js)
+        db.commit()
+        db.refresh(js)
+    return js
+
+def _set_job(db: Session, *, status: str, message: str | None = None,
+             progress: int | None = None, touch_last_run: bool = False) -> None:
+    js = _get_or_create_job(db)
+    # Δέχεται είτε string είτε Enum
+    js.status = JobStatus(status) if 'JobStatus' in globals() and hasattr(JobStatus, '__call__') else status
+    if message is not None:
+        js.message = message
+    if progress is not None:
+        js.progress = int(progress)
+    if touch_last_run and (status == "running" or getattr(js.status, "value", None) == "running"):
+        js.last_run = datetime.now(timezone.utc)
+    db.commit()
 
 # ---------- STATUS ----------
 @router.get("/status")
@@ -33,16 +56,50 @@ def get_status(db: Session = Depends(get_db)) -> Dict[str, Any]:
     }
 
 # ---------- ACTIONS ----------
+# @router.post("/actions/parse")
+# def trigger_parse(force_full: bool = False, user=Depends(require_user)):
+#     """
+#     Ξεκινά άμεσα parsing όλων των ενεργών accounts.
+#     Αν force_full=True, αγνοεί τα incremental timestamps.
+#     Τρέχει σε background thread και ΑΠΟΘΗΚΕΥΕΙ στο DB.
+#     """
+#     def _job():
+#         meetings = extract_meetings_all_accounts(force_full=force_full)
+#         store_meetings_to_db(meetings)
+#     threading.Thread(target=_job, daemon=True).start()
+#     return {"status": "parse_triggered", "force_full": bool(force_full)}
+
 @router.post("/actions/parse")
 def trigger_parse(force_full: bool = False, user=Depends(require_user)):
     """
-    Ξεκινά άμεσα parsing όλων των ενεργών accounts.
+    Ξεκινά parsing όλων των ενεργών accounts.
     Αν force_full=True, αγνοεί τα incremental timestamps.
     Τρέχει σε background thread και ΑΠΟΘΗΚΕΥΕΙ στο DB.
+    Προστασία από παράλληλη εκτέλεση.
     """
+    # Γρήγορος έλεγχος: αν ήδη τρέχει, μην ξεκινήσεις νέο
+    with SessionLocal() as db:
+        js = db.query(JobState).first()
+        status_val = getattr(js.status, "value", js.status) if js else "idle"
+        if status_val == "running":
+            raise HTTPException(status_code=409, detail="Collector is already running")
+
+        _set_job(db, status="running", message="Starting…", progress=0, touch_last_run=True)
+
     def _job():
-        meetings = extract_meetings_all_accounts(force_full=force_full)
-        store_meetings_to_db(meetings)
+        with SessionLocal() as db2:
+            try:
+                _set_job(db2, status="running", message="Scanning accounts…", progress=5)
+                meetings = extract_meetings_all_accounts(force_full=force_full)
+
+                _set_job(db2, status="running", message="Saving meetings…", progress=80)
+                store_meetings_to_db(meetings)
+
+                _set_job(db2, status="idle", message="Done", progress=100)
+            except Exception as e:
+                # Καταγραφή σφάλματος και ενημέρωση status
+                _set_job(db2, status="error", message=str(e), progress=0)
+
     threading.Thread(target=_job, daemon=True).start()
     return {"status": "parse_triggered", "force_full": bool(force_full)}
 

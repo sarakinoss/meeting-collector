@@ -242,22 +242,7 @@ async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(request.url_for("login_page"), status_code=302)
 
-# ---------- SSO placeholders (to implement next) ----------
-@router.get("/sso/{provider}")
-async def sso_start(provider: str):
-    # TODO: Implement OAuth2 with Authlib (Google/Microsoft)
-    raise HTTPException(status_code=501, detail="SSO not implemented yet")
 
-
-@router.get("/sso/{provider}/callback")
-async def sso_callback(provider: str, request: Request, db: Session = Depends(get_db)):
-    raise HTTPException(status_code=501, detail="SSO not implemented yet")
-
-
-# ---------- ME (current user JSON) ----------
-@router.get("/me")
-async def me(user: User = Depends(require_user)):
-    return {"id": user.id, "username": user.username, "email": user.email}
 
 # ---------- Settings Page ----------
 # @router.get("/settings", response_class=HTMLResponse)
@@ -287,3 +272,21 @@ def revoke_access(mail_account_id: int, user_id: int, db: Session = Depends(get_
     if row:
         db.delete(row); db.commit()
     return {"ok": True}
+
+
+# ---------- TODO SSO placeholders (to implement next) ----------
+@router.get("/sso/{provider}")
+async def sso_start(provider: str):
+    # TODO: Implement OAuth2 with Authlib (Google/Microsoft)
+    raise HTTPException(status_code=501, detail="SSO not implemented yet")
+
+
+@router.get("/sso/{provider}/callback")
+async def sso_callback(provider: str, request: Request, db: Session = Depends(get_db)):
+    raise HTTPException(status_code=501, detail="SSO not implemented yet")
+
+
+# ---------- ME (current user JSON) ----------
+@router.get("/me")
+async def me(user: User = Depends(require_user)):
+    return {"id": user.id, "username": user.username, "email": user.email}
