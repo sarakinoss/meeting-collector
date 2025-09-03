@@ -26,5 +26,5 @@ meeting_collector.log
 meetings.db
 
 # Local config / secrets
-accounts.json
+../../../../WebstormProjects/meeting-collector/accounts.json
 gmail.json

@@ -682,6 +682,22 @@
         }[c]));
     }
 
+    function parseEmails(input) {
+        if (Array.isArray(input)) {
+            input = input.join(', ');
+        }
+        const s = String(input || '');
+        // πιάσε μόνο καθαρά emails (αγνοεί ονόματα, quotes, <...>, κλπ.)
+        const matches = s.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig) || [];
+        // αφαίρεσε διπλότυπα, κράτα τη σειρά που εμφανίστηκαν
+        const seen = new Set();
+        const out = [];
+        for (const m of matches) {
+            if (!seen.has(m)) { seen.add(m); out.push(m); }
+        }
+        return out;
+    }
+
     function toggleBusy(btn, on) {
         if (!btn) return;
         btn.disabled = !!on;
@@ -724,7 +740,22 @@
         return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${fmt(start)}/${fmt(end)}&details=${details}&location=${location}`;
     }
 
-    function downloadICS(events) {
+    function icsEscape(s = '') {
+        return String(s)
+            .replace(/\\/g, '\\\\')
+            .replace(/;/g,  '\\;')
+            .replace(/,/g,  '\\,')
+            .replace(/\r?\n/g, '\\n');
+    }
+    function icsFmt(d) {
+        // UTC σε μορφή YYYYMMDDTHHMMSSZ
+        return new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+    }
+    function slug(s='') {
+        return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+    }
+
+    /*function downloadICS(events) {
         const dtstamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
         const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Meeting Collector//EN'];
         for (const ev of events) {
@@ -750,6 +781,61 @@
         a.download = 'meetings.ics';
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+*/
+    // ΤΩΡΑ: δέχεται είτε array είτε single event. Προαιρετικό filename.
+    function downloadICS(input, filename) {
+        const events = Array.isArray(input) ? input : [input];
+        const dtstamp = icsFmt(new Date());
+        const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Meeting Collector//EN','CALSCALE:GREGORIAN'];
+
+        for (const ev of events) {
+            const start = new Date(ev.start);
+            const end = ev.extendedProps?.end ? new Date(ev.extendedProps.end)
+                : new Date(start.getTime() + 60*60000);
+            const uid = `${ev.id || (crypto.randomUUID && crypto.randomUUID()) || Math.random().toString(36).slice(2)}@meeting-collector`;
+            const title = icsEscape(ev.title || '');
+            const url   = (ev.extendedProps?.link || '').trim();
+
+            lines.push(
+                'BEGIN:VEVENT',
+                `UID:${uid}`,
+                `DTSTAMP:${dtstamp}`,
+                `DTSTART:${icsFmt(start)}`,
+                `DTEND:${icsFmt(end)}`,
+                `SUMMARY:${title}`,
+                url ? `URL:${icsEscape(url)}` : '',
+                // Προαιρετικά άφησε και στο DESCRIPTION το link, βοηθάει σε μερικούς clients:
+                url ? `DESCRIPTION:${icsEscape(url)}` : 'DESCRIPTION:',
+                'END:VEVENT'
+            );
+        }
+
+        lines.push('END:VCALENDAR');
+        const ics = lines.filter(Boolean).join('\r\n');
+        const blob = new Blob([ics], {type:'text/calendar'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+
+        // default filename
+        if (!filename) {
+            if (events.length === 1) {
+                const ev = events[0];
+                const when = ev.start ? new Date(ev.start) : new Date();
+                const y = when.getFullYear();
+                const m = String(when.getMonth()+1).padStart(2,'0');
+                const d = String(when.getDate()).padStart(2,'0');
+                a.download = `meeting-${d}_${m}_${y}-${slug(ev.title || 'event')}.ics`;
+            } else {
+                a.download = 'collected-meetings-${d}_${m}_${y}.ics';
+            }
+        } else {
+            a.download = filename;
+        }
+
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
     }
 
     // ---------- UI state ----------
@@ -867,21 +953,19 @@
         const keys = [];
         $$('#accountsList input[type="checkbox"]').forEach(cb => {
             if (!cb.checked) return;
-            // Πρώτα data-attribute με email (αν υπάρχει)
             const mail = cb.getAttribute('data-account-key') || cb.getAttribute('data-account-email');
-            if (mail) { keys.push(String(mail).trim().toLowerCase()); return; }
-            // Fallback: πάρε το email από το κείμενο του label
+            if (mail) { keys.push(String(mail).trim()); return; }  // <- χωρίς lowercase
             const label = cb.closest('label');
-            const span  = label?.querySelector('.text-sm.font-medium') || label?.querySelector('span');
-            const text  = span?.textContent?.trim();
-            if (text) keys.push(text.toLowerCase());
+            const el = label?.querySelector('.text-sm.font-medium');
+            const text = el?.textContent?.trim();
+            if (text) keys.push(text); // <- χωρίς lowercase
         });
         return new Set(keys);
     }
 
 
-
-
+    // OPTIONAL: μόνο για να το καλείς από το console
+    if (typeof window !== 'undefined') window.getSelectedAccounts = getSelectedAccounts;
 
 
     function applyFilters(list) {
@@ -921,6 +1005,13 @@
                 if (accKey && !selectedAccs.has(accKey)) return false;
             }
 
+            /*if (useAccountFilter) {
+                if (selectedAccs.size === 0) return false;  // αν δεν έχεις διαλέξει account -> τίποτα
+                const evEmail = String(ev.extendedProps?.account || ''); // ΟΠΩΣ ΕΡΧΕΤΑΙ
+                if (!evEmail) return false;
+                if (!selectedAccs.has(evEmail)) return false;
+            }*/
+
             return true;
         });
     }
@@ -937,6 +1028,7 @@
             if (!res.ok) throw new Error('HTTP ' + res.status);
             ALL = await res.json();
             EVENTS = transform(ALL);
+            window.EVENTS = EVENTS;
         } catch (err) {
             console.error(err);
             ALL = []; EVENTS = [];
@@ -1205,22 +1297,49 @@
         const body = $('#drawer-body');
         if (!drawer || !body) return;
         body.innerHTML = `
-      <div><span class="text-slate-500">Subject</span><div class="font-medium">${ev.extendedProps.subject||ev.title||''}</div></div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><span class="text-slate-500">Start</span><div class="font-medium">${ev.start?formatLocal(ev.start):'-'}</div></div>
-        <div><span class="text-slate-500">Platform</span><div class="font-medium">${platformBadge((ev.extendedProps.platform||'').toLowerCase())}</div></div>
-      </div>
-      <div><span class="text-slate-500">From</span><div class="font-medium">${ev.extendedProps.sender||''}</div></div>
-      <div><span class="text-slate-500">Attendees</span><div class="font-medium whitespace-pre-wrap">${ev.extendedProps.attendees||''}</div></div>
-      <div><span class="text-slate-500">Account / Folder</span><div class="font-medium">${ev.extendedProps.account||''} · ${ev.extendedProps.folder||''}</div></div>
-      <div class="pt-2 flex gap-2">
-        ${ev.extendedProps.link?`<a href="${ev.extendedProps.link}" target="_blank" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">Join</a>`:''}
-        ${ev.start?`<a href="${googleCalendarUrl(ev)}" target="_blank" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Add to Google Calendar</a>`:''}
-        ${ev.extendedProps.msg_id?`<a href="/emails/by-mid/${encodeURIComponent(ev.extendedProps.msg_id)}/preview" target="_blank" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Preview email</a>`:''}
-        ${ev.extendedProps.msg_id?`<a href="/emails/by-mid/${encodeURIComponent(ev.extendedProps.msg_id)}/download" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Download .eml</a>`:''}
-      </div>`;
+        <div><span class="text-slate-500">Account</span><div class="font-medium">${ev.extendedProps.account||''}</div></div>
+        <div><span class="text-slate-500">Folder</span><div class="font-medium">${ev.extendedProps.folder||''}</div></div>
+        <div><span class="text-slate-500">From</span><div class="font-medium">${ev.extendedProps.sender||''}</div></div>
+        <div><span class="text-slate-500">Subject</span><div class="font-medium">${ev.extendedProps.subject||ev.title||''}</div></div>
+        <div class="grid grid-cols-2 gap-3">
+            <div><span class="text-slate-500">Start</span><div class="font-medium">${ev.start?formatLocal(ev.start):'-'}</div></div>
+            <div><span class="text-slate-500">Platform</span><div class="font-medium">${platformBadge((ev.extendedProps.platform||'').toLowerCase())}</div></div>
+        </div>
+        <!--<div><span class="text-slate-500">Attendees</span><div class="font-medium whitespace-pre-wrap">${ev.extendedProps.attendees||''}</div></div>-->
+        <div><span class="text-slate-500">Attendees</span>${renderAttendeesList(ev.extendedProps.attendees)}</div>
+
+
+        <div class="pt-2 flex gap-2">
+            ${ev.extendedProps.link?`<a href="${ev.extendedProps.link}" target="_blank" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">Join</a>`:''}
+            ${ev.start?`<a href="${googleCalendarUrl(ev)}" target="_blank" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Add to Google Calendar</a>`:''}
+            ${ev.extendedProps.msg_id?`<a href="/emails/by-mid/${encodeURIComponent(ev.extendedProps.msg_id)}/preview" target="_blank" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Preview email</a>`:''}
+            ${ev.extendedProps.msg_id?`<a href="/emails/by-mid/${encodeURIComponent(ev.extendedProps.msg_id)}/download" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Download .eml</a>`:''}
+            <button id="btn-export-ics-one" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Download .ics</button>
+        </div>
+        `;
         $$('#drawer [data-close]').forEach(el => el.addEventListener('click', () => drawer.classList.add('hidden')));
+        // listener για single export
+        $('#btn-export-ics-one')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            downloadICS(ev);        // ✅ single event (η downloadICS πλέον το δέχεται)
+        });
+
         drawer.classList.remove('hidden');
+    }
+
+    function renderAttendeesList(attendees) {
+        const emails = parseEmails(attendees);
+        if (emails.length === 0) {
+            return `<div class="text-slate-400 text-sm">—</div>`;
+        }
+        return `
+    <ul class="mt-1 space-y-1">
+      ${emails.map(e => `
+        <li>
+          <a href="mailto:${e}" class="text-blue-600 underline hover:text-blue-700">${escapeHtml(e)}</a>
+        </li>
+      `).join('')}
+    </ul>`;
     }
 
     // ---------- Accounts ----------
@@ -1292,8 +1411,7 @@
             <li class="px-2 py-1.5">
               <label class="flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-slate-100">
                 <input type="checkbox" class="w-4 h-4 accent-blue-600 mt-0.5"
-                       data-account-id="${escapeHtml(String(acc.id ?? ""))}"
-                       data-account-key="${escapeHtml(email.toLowerCase())}"
+                       data-account-id="${String(acc.id ?? "")}"
                        checked />
                 <div class="min-w-0 flex-1">
                   <div class="text-sm font-medium truncate">${escapeHtml(email)}</div>
@@ -1590,6 +1708,10 @@
             if (t.closest && t.closest('#accountsList') && t.type === 'checkbox') return true; // account cbs (loaded later)
             return false;
         }
+        $('#accountsList')?.addEventListener('change', (e) => {
+            if (e.target && e.target.matches('input[type="checkbox"]')) render();
+        });
+
         side?.addEventListener('input',  (e) => { if (wantsRender(e.target)) render(); }, true);
         side?.addEventListener('change', (e) => { if (wantsRender(e.target)) render(); }, true);
 

@@ -31,6 +31,7 @@
             <div id="calendarDay" class="text-lg font-bold">--</div>
         </div>
 
+        <!-- Plain text title-->
         <a href="/" class="leading-tight hover:opacity-90">
             <h1 class="text-xl font-semibold">
                 Meeting<br/>Collector
@@ -38,7 +39,7 @@
         </a>
 
 
-        <!-- loader shown when /status says running -->
+        <!-- Spin icon animation and status message -->
         <div id="loader" class="ml-3 hidden items-center gap-2 text-slate-600">
             <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
                  aria-hidden="true">
@@ -48,53 +49,18 @@
             <span id="loader-text" class="text-sm">collecting…</span>
         </div>
 
-        <!-- slim progress bar -->
-        <div class="ml-4 flex-1">
-            <div id="progress" class="h-1 bg-slate-200 rounded-full overflow-hidden hidden">
-                <div id="progress-bar" class="h-1 bg-slate-900" style="width:0%"></div>
-            </div>
-        </div>
+<!--        &lt;!&ndash; slim progress bar &ndash;&gt;-->
+<!--        <div class="ml-4 flex-1">-->
+<!--            <div id="progress" class="h-1 bg-slate-200 rounded-full overflow-hidden hidden">-->
+<!--                <div id="progress-bar" class="h-1 bg-slate-900" style="width:0%"></div>-->
+<!--            </div>-->
+<!--        </div>-->
 
-        <!--        <div class="ml-auto flex items-center gap-2">-->
-        <!--            <button id="btn-refresh" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">Refresh</button>-->
-        <!--            <a id="btn-export" class="rounded-xl bg-white border px-3 py-2 text-sm hover:bg-slate-100" href="#">Export.ics (visible)</a>-->
-        <!--        </div>-->
 
-        <!-- Toolbar (Header right) -->
-        <!--<div class="flex items-center gap-2">
-            <button id="btnRefresh" class="px-3 py-1.5 rounded-md bg-slate-800 text-white hover:bg-slate-700">
-                Refresh
-            </button>
-            <button id="btnUpdate" class="px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-500">
-                Update
-            </button>
-            <button id="btnFullParse" class="px-3 py-1.5 rounded-md bg-amber-600 text-white hover:bg-amber-500">
-                Full-Parse
-            </button>
-        </div>-->
+        <!-- Right side of header -->
+        <div id="headerRight" class="flex items-center gap-4 ml-auto">
 
-        <!--<nav class="flex items-center gap-3">
-            {% if user %}
-            &lt;!&ndash; Avatar dropdown (CSS-only με <details>) &ndash;&gt;
-            <details class="user-menu">
-                <summary class="avatar" title="{{ user.username }}">
-                    {{ (user.username or 'U')[:1]|upper }}
-                </summary>
-                <div class="menu">
-                    <a href="/auth/settings">Ρυθμίσεις</a>
-                    {% if user.is_admin %}
-                    <a href="/auth/admin/users">Χρήστες</a>
-                    {% endif %}
-                    <a href="/auth/logout">Αποσύνδεση</a>
-                </div>
-            </details>
-            {% else %}
-            <a href="/auth/login" class="btn">Σύνδεση</a>
-            {% endif %}
-        </nav>-->
-
-        <!-- Header Right wrapper που ήδη έχεις -->
-        <div id="headerRight" class="flex items-center gap-4">
+            <!-- Function buttons for parsing -->
             <div id="headerActions" class="flex items-center gap-2">
                 <button id="btnRefresh" class="px-3 py-1.5 rounded-md bg-slate-800 text-white hover:bg-slate-700">
                     Refresh
@@ -104,8 +70,15 @@
                 <button id="btnFullParse" class="px-3 py-1.5 rounded-md bg-amber-600 text-white hover:bg-amber-500">
                     Full-Parse
                 </button>
+                <!-- μέσα στο markup του drawer, κάπου στο header ή στα actions -->
+                <button id="btn-export"
+                        class="mt-2 inline-flex items-center rounded-md border px-2.5 py-1.5 text-sm
+               hover:bg-slate-50">
+                    Download .ics
+                </button>
             </div>
 
+            <!-- Profile and system navigation menu-->
             <nav id="accountNav" class="flex items-center gap-3">
                 {% if user %}
                 <details class="user-menu">
@@ -121,20 +94,16 @@
                 {% endif %}
             </nav>
 
-            <!-- NEW: hamburger (φαίνεται μόνο σε mobile) -->
-            <button id="btnHeaderMenu"
-                    class="p-2 rounded-md border hover:bg-slate-50 md:hidden"
-                    aria-label="Menu">
-                <!-- απλό icon -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
-                     viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M4 6h16M4 12h16M4 18h16"/>
+            <!-- Sandwich Menu Button for small displays -->
+            <button id="btnHeaderMenu" class="p-2 rounded-md border hover:bg-slate-50 md:hidden" aria-label="Menu">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                 </svg>
             </button>
+
         </div>
 
-        <!-- NEW: popover panel που θα γεμίσουμε μετακινώντας τα ίδια nodes -->
+        <!-- Placeholder for sandwich button for header buttons on small screens-->
         <div id="headerMenuPanel"
              class="hidden absolute right-0 top-14 z-[120] w-64
             rounded-xl border bg-white shadow-lg p-3">
@@ -144,11 +113,6 @@
 
     </div>
 
-    <!-- Thin header loader (indeterminate)
-    <div id="headerLoader"
-         class="hidden absolute left-4 right-4 bottom-2 h-[3px] rounded-full overflow-hidden z-50">
-        <div class="bar"></div>
-    </div>-->
 
     <!-- Thin header loader (indeterminate), sits exactly at the bottom -->
     <div id="headerLoader" class="hidden absolute inset-x-0 bottom-0 h-[3px] z-30 pointer-events-none">

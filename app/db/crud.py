@@ -13,12 +13,30 @@ from sqlalchemy import select, func, and_
 
 
 
+# def _parse_dt(s: Optional[str]) -> Optional[datetime]:
+#     if not s: return None
+#     try:
+#         return dateparser.parse(s)
+#     except Exception:
+#         return None
+
 def _parse_dt(s: Optional[str]) -> Optional[datetime]:
-    if not s: return None
+    if not s:
+        return None
     try:
         return dateparser.parse(s)
     except Exception:
         return None
+
+def link_meeting_email(db: Session, *, meeting: Meeting, email: Email, role: str | None = None) -> None:
+    exists = db.execute(
+        select(MeetingEmail).where(
+            and_(MeetingEmail.meeting_id == meeting.id,
+                 MeetingEmail.email_id == email.id)
+        )
+    ).scalar_one_or_none()
+    if not exists:
+        db.add(MeetingEmail(meeting_id=meeting.id, email_id=email.id, role=role))
 
 # def store_meetings_to_db(meeting_list: Iterable[dict], db: Session | None = None) -> None:
 #     """
@@ -61,98 +79,148 @@ def _parse_dt(s: Optional[str]) -> Optional[datetime]:
 #             db.close()
 
 
+# def store_meetings_to_db(meeting_list: Iterable[dict], db: Session | None = None) -> None:
+#     """
+#     Upsert meetings in the Meeting table και δέσε τα σχετικά emails (MeetingEmail).
+#     Δουλεύει με την ίδια λίστα dicts από τον parser.
+#     """
+#     own_session = False
+#     if db is None:
+#         db = SessionLocal()
+#         own_session = True
+#
+#     try:
+#         for m in meeting_list:
+#             uid = m.get("meet_id") or (m.get("meet_link") or "").strip() or None
+#             if not uid:
+#                 continue
+#
+#             # find/create meeting
+#             row = db.execute(select(Meeting).where(Meeting.uid == uid)).scalar_one_or_none()
+#             if row is None:
+#                 row = Meeting(uid=uid)
+#                 db.add(row)
+#
+#             # map πεδία meeting
+#             row.platform   = m.get("meet_platform")
+#             row.title      = m.get("msg_subject") or m.get("title")
+#             row.link       = m.get("meet_link")
+#             row.start      = _parse_dt(m.get("meet_date"))
+#             row.end        = _parse_dt(m.get("meet_end_date"))
+#             row.organizer  = m.get("msg_sender")
+#             row.attendees  = m.get("meet_attendants") or m.get("msg_attendants")
+#             row.parse_reason  = m.get("parse_reason")
+#             row.parse_snippet = m.get("parse_snippet")
+#             row.last_msg_datetime = _parse_dt(m.get("msg_date"))
+#
+#             # βεβαιώσου ότι υπάρχει row.id πριν φτιάξουμε σχέσεις
+#             db.flush()
+#
+#
+#
+#             # helper: βάλε/ενημέρωσε δεσμό με συγκεκριμένο role
+#             def _link_role(message_id: str | None, role: str):
+#                 if not message_id:
+#                     return
+#                 em = db.execute(select(Email).where(Email.message_id == message_id)).scalar_one_or_none()
+#                 if not em:
+#                     return
+#                 # υπάρχει ήδη ο συγκεκριμένος δεσμός;
+#                 me = db.execute(
+#                     select(MeetingEmail).where(
+#                         MeetingEmail.meeting_id == row.id,
+#                         MeetingEmail.email_id == em.id
+#                     )
+#                 ).scalar_one_or_none()
+#                 if not me:
+#                     me = MeetingEmail(meeting_id=row.id, email_id=em.id, role=role)
+#                     db.add(me)
+#                 else:
+#                     me.role = role
+#                 # καθάρισε τυχόν άλλο email με το ίδιο role για το ίδιο meeting
+#                 db.query(MeetingEmail) \
+#                     .filter(MeetingEmail.meeting_id == row.id,
+#                             MeetingEmail.role == role,
+#                             MeetingEmail.email_id != em.id) \
+#                     .update({MeetingEmail.role: None})
+#
+#             # ρόλοι: latest = m["msg_id"], date = m.get("msg_id_date")
+#             _link_role(m.get("msg_id"), role="latest")
+#             _link_role(m.get("msg_id_date"), role="date")
+#
+#
+#
+#
+#
+#             # δέσιμο σχετικών emails (από msg_id ή related_messages)
+#             related = m.get("related_messages") or ([m.get("msg_id")] if m.get("msg_id") else [])
+#             for message_id in related:
+#                 if not message_id:
+#                     continue
+#                 em = db.execute(select(Email).where(Email.message_id == message_id)).scalar_one_or_none()
+#                 if not em:
+#                     continue
+#                 exists = db.execute(
+#                     select(MeetingEmail).where(
+#                         MeetingEmail.meeting_id == row.id,
+#                         MeetingEmail.email_id == em.id,
+#                     )
+#                 ).first()
+#                 if not exists:
+#                     db.add(MeetingEmail(meeting_id=row.id, email_id=em.id, role=None))
+#         db.commit()
+#     finally:
+#         if own_session:
+#             db.close()
+
 def store_meetings_to_db(meeting_list: Iterable[dict], db: Session | None = None) -> None:
-    """
-    Upsert meetings in the Meeting table και δέσε τα σχετικά emails (MeetingEmail).
-    Δουλεύει με την ίδια λίστα dicts από τον parser.
-    """
-    own_session = False
+    """Upsert Meeting και δέσιμο με Email μέσω message_id/related_messages."""
+    own = False
     if db is None:
         db = SessionLocal()
-        own_session = True
-
+        own = True
     try:
         for m in meeting_list:
-            uid = m.get("meet_id") or (m.get("meet_link") or "").strip() or None
+            uid = m.get("meet_id") or (m.get("meet_link") or "").strip()
             if not uid:
                 continue
 
-            # find/create meeting
+            # Upsert meeting
             row = db.execute(select(Meeting).where(Meeting.uid == uid)).scalar_one_or_none()
             if row is None:
                 row = Meeting(uid=uid)
                 db.add(row)
 
-            # map πεδία meeting
-            row.platform   = m.get("meet_platform")
-            row.title      = m.get("msg_subject") or m.get("title")
-            row.link       = m.get("meet_link")
-            row.start      = _parse_dt(m.get("meet_date"))
-            row.end        = _parse_dt(m.get("meet_end_date"))
-            row.organizer  = m.get("msg_sender")
-            row.attendees  = m.get("meet_attendants") or m.get("msg_attendants")
+            row.platform  = m.get("meet_platform")
+            row.title     = m.get("msg_subject") or m.get("title")
+            row.link      = m.get("meet_link")
+            row.start     = _parse_dt(m.get("meet_date"))
+            row.end       = _parse_dt(m.get("meet_end_date"))
+            row.organizer = m.get("msg_sender")
+            row.attendees = m.get("meet_attendants") or m.get("msg_attendants")
             row.parse_reason  = m.get("parse_reason")
             row.parse_snippet = m.get("parse_snippet")
             row.last_msg_datetime = _parse_dt(m.get("msg_date"))
 
-            # βεβαιώσου ότι υπάρχει row.id πριν φτιάξουμε σχέσεις
-            db.flush()
+            db.flush()  # θέλουμε row.id
 
+            # Συγκέντρωσε όλα τα message_ids που σχετίζονται με το meeting
+            mids = []
+            if m.get("msg_id"):
+                mids.append(m["msg_id"])
+            for rid in (m.get("related_messages") or []):
+                if rid and rid not in mids:
+                    mids.append(rid)
 
+            # Κάνε link με τα Emails
+            for mid in mids:
+                em = db.execute(select(Email).where(Email.message_id == mid)).scalar_one_or_none()
+                if em:
+                    link_meeting_email(db, meeting=row, email=em)
 
-            # helper: βάλε/ενημέρωσε δεσμό με συγκεκριμένο role
-            def _link_role(message_id: str | None, role: str):
-                if not message_id:
-                    return
-                em = db.execute(select(Email).where(Email.message_id == message_id)).scalar_one_or_none()
-                if not em:
-                    return
-                # υπάρχει ήδη ο συγκεκριμένος δεσμός;
-                me = db.execute(
-                    select(MeetingEmail).where(
-                        MeetingEmail.meeting_id == row.id,
-                        MeetingEmail.email_id == em.id
-                    )
-                ).scalar_one_or_none()
-                if not me:
-                    me = MeetingEmail(meeting_id=row.id, email_id=em.id, role=role)
-                    db.add(me)
-                else:
-                    me.role = role
-                # καθάρισε τυχόν άλλο email με το ίδιο role για το ίδιο meeting
-                db.query(MeetingEmail) \
-                    .filter(MeetingEmail.meeting_id == row.id,
-                            MeetingEmail.role == role,
-                            MeetingEmail.email_id != em.id) \
-                    .update({MeetingEmail.role: None})
-
-            # ρόλοι: latest = m["msg_id"], date = m.get("msg_id_date")
-            _link_role(m.get("msg_id"), role="latest")
-            _link_role(m.get("msg_id_date"), role="date")
-
-
-
-
-
-            # δέσιμο σχετικών emails (από msg_id ή related_messages)
-            related = m.get("related_messages") or ([m.get("msg_id")] if m.get("msg_id") else [])
-            for message_id in related:
-                if not message_id:
-                    continue
-                em = db.execute(select(Email).where(Email.message_id == message_id)).scalar_one_or_none()
-                if not em:
-                    continue
-                exists = db.execute(
-                    select(MeetingEmail).where(
-                        MeetingEmail.meeting_id == row.id,
-                        MeetingEmail.email_id == em.id,
-                    )
-                ).first()
-                if not exists:
-                    db.add(MeetingEmail(meeting_id=row.id, email_id=em.id, role=None))
         db.commit()
     finally:
-        if own_session:
+        if own:
             db.close()
 
 

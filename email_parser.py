@@ -1,3 +1,4 @@
+import re
 import email
 import socket
 import logging
@@ -19,6 +20,17 @@ from app.collector.save_eml import save_eml_bytes
 
 from app.db.session import SessionLocal
 from app.db.models import Email, MailAccount
+
+LOGGER = logging.getLogger("collector")
+
+
+# regexes (case-insensitive)
+EMAIL_RE          = re.compile(r'(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b')
+TEAMS_THREAD_RE   = re.compile(r'(?i)^19(?::|%3a)?meeting_.*@thread\.v2$')   # 19:meeting_...@thread.v2 (ή URL-encoded %3a)
+UUID_LOCAL_RE     = re.compile(r'(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+IDLIKE_LOCAL_RE   = re.compile(r'(?i)^[0-9a-f-]{20,}$')  # “εξακοσάρι” hex με παύλες, τύπου GUID/ID
+
+
 
 # TODO Mark found email with meetings as RED in order to distiguish at a glance.
 # TODO For the same meeting ID it has to keep the last message meeting date like sent@16/4/25, 08:50 Libra
@@ -232,7 +244,7 @@ def extract_meetings_for_account(*,
                             # For mails that contain meeting link
                             if link:
 
-                                logging.info(f"✅ Meeting found: {link} \n @ {folder_name}")
+#                                 logging.info(f"✅ Meeting found: {link} \n @ {folder_name}")
 
                                 meet_date = extract_meet_date(msg, text_body, html_body)
 
@@ -240,14 +252,19 @@ def extract_meetings_for_account(*,
                                 try:
                                     # 1) save raw .eml
                                     eml_path = save_eml_bytes(email_address, message_id, body)
+                                except Exception as e:
+                                    logging.warning(f"EML save/upsert failed for {message_id}: {e}")
+                                    eml_path = None
 
-                                    # 2) upsert Email in DB
-                                    try:
-                                        received_dt = dateparser.parse(msg_date) if msg_date else None
-                                    except Exception:
-                                        received_dt = None
+                                # 2) upsert Email in DB
+                                try:
+                                    received_dt = dateparser.parse(msg_date) if msg_date else None
+                                except Exception:
+                                    received_dt = None
 
+                                try:
                                     with SessionLocal() as db:
+                                        logging.info("[E-UP] upsert Email: msg_id=%s account=%s folder=%s", message_id, email_address, folder_name)
                                         row = db.execute(select(Email).where(
                                             Email.message_id == message_id)).scalar_one_or_none()
                                         if row is None:
@@ -264,9 +281,11 @@ def extract_meetings_for_account(*,
                                         row.has_calendar = True  # εδώ είμαστε σε mail με meeting link
                                         row.eml_path = eml_path  # ★ σημαντικό για preview/download
 
+                                        db.flush()
+                                        logging.info("[E-UP] email row id=%s (pre-commit)", getattr(row, "id", None))
                                         db.commit()
                                 except Exception as e:
-                                    logging.warning(f"EML save/upsert failed for {message_id}: {e}")
+                                    logging.exception("Email upsert failed for %s: %s", message_id, e)
                                 # --- end EML upsert ---
 
                                 # Parse the message's date (for comparison) to datetime
@@ -754,19 +773,54 @@ def decode_mime_header(header_value):
 # Filters out unwanted system-generated addresses (like Microsoft Teams threads),
 # Normalizes the emails (lowercase, stripped), removes duplicates,
 # and returns them as a comma-separated values.
-def extract_clean_meet_attendants(body):
-    # Define a regular expression to match typical email addresses
-    email_regex = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
-    # Find all email addresses in the body using the regex pattern
-    emails = re.findall(email_regex, body)
-    # Clean and filter the email addresses
-    cleaned = [
-        e.strip().lower()  # Normalize email: remove whitespace and lowercase
-        for e in emails
-        if not e.startswith("part")  # Exclude generic partials or placeholders (e.g., "part123@...")
-           and not re.match(  # Exclude system-generated MS Teams thread addresses
-            r"^19_meeting_.*@thread\.v2$", e
-        )
-    ]
-    # Remove duplicates using set(), sort them alphabetically, and join with ",<br> " for display
-    return ", ".join(sorted(set(cleaned)))
+# def extract_clean_meet_attendants(body):
+#     # Define a regular expression to match typical email addresses
+#     email_regex = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
+#     # Find all email addresses in the body using the regex pattern
+#     emails = re.findall(email_regex, body)
+#     # Clean and filter the email addresses
+#     cleaned = [
+#         e.strip().lower()  # Normalize email: remove whitespace and lowercase
+#         for e in emails
+#         if not e.startswith("part")  # Exclude generic partials or placeholders (e.g., "part123@...")
+#            and not re.match(  # Exclude system-generated MS Teams thread addresses
+#             r"^19_meeting_.*@thread\.v2$", e
+#         )
+#     ]
+#     # Remove duplicates using set(), sort them alphabetically, and join with ",<br> " for display
+#     return ", ".join(sorted(set(cleaned)))
+
+
+def extract_clean_meet_attendants(body: str) -> str:
+    """
+    Εντοπίζει emails στο body και επιστρέφει καθαρή λίστα (comma-separated, lowercase),
+    με φιλτράρισμα:
+      - αγνοεί "part..." placeholders,
+      - κόβει Teams thread addresses (19:meeting_...@thread.v2),
+      - κόβει UUID/ID-like local parts (π.χ. 7b56307a-d075-...@helioaiolis.gr),
+      - αφαιρεί διπλότυπα, κάνει αλφαβητική ταξινόμηση.
+    """
+    s = body or ""
+    emails = EMAIL_RE.findall(s)
+
+    keep, seen = [], set()
+    for e in emails:
+        e = e.strip().lower()
+
+        # κανόνες αποκλεισμού
+        if e.startswith("part"):                  # placeholders (όπως είχες)
+            continue
+        if TEAMS_THREAD_RE.match(e):              # thread.v2 system addresses
+            continue
+
+        local, _, domain = e.partition("@")
+        if UUID_LOCAL_RE.match(local):            # καθαρό UUID
+            continue
+        if IDLIKE_LOCAL_RE.match(local):          # “hexάτα” IDs με παύλες/μήκος
+            continue
+
+        if e not in seen:
+            seen.add(e)
+            keep.append(e)
+
+    return ", ".join(sorted(keep))
