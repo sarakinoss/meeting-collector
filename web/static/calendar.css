@@ -164,6 +164,14 @@
 }
 #headerMenuPanel #accountNav .btn:hover{ background:#e2e8f0; }
 
+#btnSideToggle{
+    position:fixed;
+    left:1rem;
+    bottom:calc(1rem + env(safe-area-inset-bottom, 0px));
+    z-index:120;
+    margin:0;
+    transform:translateZ(0);
+}
 
 
 /* Compact status chips (one-line, very low height) */
@@ -210,3 +218,180 @@
     transform: translateY(0);
     opacity: 1;
 }
+
+/* -------- Base (όλοι) -------- */
+#calendar .fc-header-toolbar{
+    display:flex;
+    flex-wrap:wrap;                 /* επιτρέπουμε δεύτερη γραμμή όταν χρειαστεί */
+    gap:.5rem .75rem;
+    align-items:center;
+}
+#calendar .fc .fc-button{         /* ήπια συμπύκνωση κουμπιών παντού */
+    padding:.375rem .625rem;
+    font-size:.875rem;              /* ~14px */
+    line-height:1.1;
+}
+
+/* -------- lg (≥1024px) — full size σε μία γραμμή -------- */
+@media (min-width:1024px){
+    #calendar .fc-toolbar-title{ font-size:1.5rem; }  /* ~24px */
+    #calendar .fc .fc-button{ padding:.4rem .7rem; font-size:.9rem; }
+    #calendar .fc-header-toolbar .fc-toolbar-chunk{ order:0; flex:0 0 auto; }
+}
+
+/* -------- md (768–1023px) — όλα μικραίνουν για να χωρέσουν σε μία γραμμή -------- */
+@media (min-width:768px) and (max-width:1023.98px){
+    #calendar .fc-toolbar-title{ font-size:1.125rem; }  /* ~18px */
+    #calendar .fc .fc-button{ padding:.3rem .55rem; font-size:.8125rem; } /* ~13px */
+    #calendar .fc-header-toolbar .fc-toolbar-chunk{ order:0; flex:0 0 auto; }
+    /* επιτρέπουμε στα view buttons να «σπάνε» μέσα στο δεξί chunk αν στριμώξουν */
+    #calendar .fc-header-toolbar .fc-toolbar-chunk:last-child{
+        display:flex; flex-wrap:wrap; gap:.375rem .5rem;
+    }
+}
+
+/* -------- sm (<768px) — τίτλος πάνω, controls κάτω, όλα πιο μικρά -------- */
+@media (max-width:767.98px){
+    /* ο τίτλος (μεσαίο chunk) να πάει ΠΑΝΩ και να πιάσει όλο το πλάτος */
+    #calendar .fc-header-toolbar .fc-toolbar-chunk:nth-child(2){
+        order:-1; flex-basis:100%; text-align:center;
+    }
+    #calendar .fc-toolbar-title{ font-size:1rem; }         /* ~16px */
+    #calendar .fc .fc-button{ padding:.25rem .5rem; font-size:.75rem; } /* ~12px */
+    /* οι ομάδες αριστερά/δεξιά μένουν κάτω, ευθυγραμμισμένες και με δυνατότητα wrap */
+    #calendar .fc-header-toolbar .fc-toolbar-chunk:first-child,
+    #calendar .fc-header-toolbar .fc-toolbar-chunk:last-child{
+        display:flex; flex-wrap:wrap; gap:.375rem .5rem;
+    }
+}
+
+/* iOS: μην ξανα-μεγεθύνεις τα κείμενα μέσα στο calendar */
+#calendar{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+
+/* ===== super-small (<=380px) ===== */
+@media (max-width:380px){
+    /* toolbar: πιο σφιχτό layout */
+    #calendar .fc-header-toolbar{ gap:.25rem .35rem; }
+
+    /* τίτλος μικρότερος */
+    #calendar .fc-toolbar-title{ font-size:.875rem; }       /* ~14px */
+
+    /* κουμπιά πολύ πιο compact */
+    #calendar .fc .fc-button{
+        padding:.2rem .4rem;
+        font-size:.6875rem;                                    /* ~11px */
+        line-height:1.1;
+        white-space:nowrap;
+    }
+
+    /* ομάδα views να «σπάει» ωραία σε 2 σειρές χωρίς να πλαδαρεύει */
+    #calendar .fc-header-toolbar .fc-toolbar-chunk:last-child{
+        display:flex; flex-wrap:wrap; gap:.25rem .35rem;
+    }
+}
+
+/* ===== week view: μικρότερες ημερομηνίες/ώρες ===== */
+#calendar .fc-timegrid .fc-col-header-cell-cushion{
+    font-size:.75rem;                                        /* ~12px */
+    padding:.25rem 0;
+}
+#calendar .fc .fc-timegrid-axis-cushion{                   /* labels των ωρών */
+    font-size:.75rem;
+    padding-top:.125rem; padding-bottom:.125rem;
+}
+
+/* Εμφάνισε πάντα το label των κουμπιών μέσα στο panel */
+#headerMenuPanel .btn-label { display: inline !important; }
+
+/* Κάθετη στοίχιση και full-width κουμπιά στο panel */
+#headerMenuPanel .menu-actions{
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+}
+#headerMenuPanel .menu-actions button,
+#headerMenuPanel .menu-actions a{
+    width: 100%;
+    justify-content: center;
+}
+
+/* Week/Day: κείμενο subject με ellipsis */
+#calendar .fc-timegrid-event .fc-title-inline{
+    font-size: .8125rem;       /* ~13px */
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Μόνο για dayGrid events (κελιά μήνα) */
+#calendar .fc-daygrid-event .fc-title-compact{
+    display:block;
+    font-weight:500;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;          /* μία γραμμή + "…" αν δεν χωράει */
+}
+
+/* lg (≥1024px) */
+@media (min-width:1024px){
+    #calendar .fc-daygrid-event .fc-title-compact{ font-size:.9rem; }   /* ~14.4px */
+}
+
+/* md (768–1023px) */
+@media (min-width:768px) and (max-width:1023.98px){
+    #calendar .fc-daygrid-event .fc-title-compact{ font-size:.8rem; }   /* ~12.8px */
+}
+
+/* sm (<768px) */
+@media (max-width:767.98px){
+    #calendar .fc-daygrid-event .fc-title-compact{ font-size:.75rem; }  /* ~12px */
+}
+
+/* super small (≤380px) – iPhone SE κ.λπ. */
+@media (max-width:380px){
+    #calendar .fc-daygrid-event .fc-title-compact{ font-size:.6875rem; }/* ~11px */
+    #calendar{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }  /* μην κάνει auto-zoom το iOS */
+}
+
+/* Γκρι γραμμές ΜΟΝΟ στο month grid (dayGridMonth) */
+#calendar .fc-dayGridMonth-view .fc-daygrid-day-events{
+    background-image:
+        /* 12:00 (50%) */
+            linear-gradient(to bottom,
+            transparent calc(50% - 0.5px),
+            #e5e7eb  calc(50% - 0.5px),
+            #e5e7eb  calc(50% + 0.5px),
+            transparent calc(50% + 0.5px)
+            ),
+                /* 17:00 (17/24 ≈ 70.833%) */
+            linear-gradient(to bottom,
+            transparent calc(70.833% - 0.5px),
+            #e5e7eb  calc(70.833% - 0.5px),
+            #e5e7eb  calc(70.833% + 0.5px),
+            transparent calc(70.833% + 0.5px)
+            );
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+}
+
+/* (προαιρετικό) λίγο πιο διακριτικό σε dark mode */
+@media (prefers-color-scheme: dark){
+    #calendar .fc-dayGridMonth-view .fc-daygrid-day-events{
+        background-image:
+                linear-gradient(to bottom,
+                transparent calc(50% - 0.5px),
+                rgba(255,255,255,.15) calc(50% - 0.5px),
+                rgba(255,255,255,.15) calc(50% + 0.5px),
+                transparent calc(50% + 0.5px)
+                ),
+                linear-gradient(to bottom,
+                transparent calc(70.833% - 0.5px),
+                rgba(255,255,255,.15) calc(70.833% - 0.5px),
+                rgba(255,255,255,.15) calc(70.833% + 0.5px),
+                transparent calc(70.833% + 0.5px)
+                );
+    }
+}
+
+

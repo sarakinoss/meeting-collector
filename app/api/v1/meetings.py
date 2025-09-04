@@ -16,6 +16,18 @@ from email_parser import extract_meetings_all_accounts
 
 router = APIRouter(prefix="/api/v1/meetings", tags=["Meetings"])
 
+from pydantic import BaseModel, EmailStr
+from typing import List
+from email.message import EmailMessage
+import smtplib
+
+class SendIcsIn(BaseModel):
+    to: List[EmailStr]
+    subject: str
+    text: str | None = None
+    filename: str = "invite.ics"
+    ics: str
+
 def _get_or_create_job(db: Session) -> JobState:
     js = db.query(JobState).first()
     if not js:
@@ -102,6 +114,27 @@ def trigger_parse(force_full: bool = False, user=Depends(require_user)):
 
     threading.Thread(target=_job, daemon=True).start()
     return {"status": "parse_triggered", "force_full": bool(force_full)}
+
+@router.post("/send-ics")
+def send_ics(payload: SendIcsIn):
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = payload.subject
+        msg["From"] = "no-reply@yourdomain"
+        msg["To"] = ", ".join(payload.to)
+        msg.set_content(payload.text or "Meeting invite attached.")
+        msg.add_attachment(
+            payload.ics.encode("utf-8"),
+            maintype="text",
+            subtype="calendar",
+            filename=payload.filename,
+            params={"method": "PUBLISH", "name": payload.filename}
+        )
+        with smtplib.SMTP("localhost") as s:
+            s.send_message(msg)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ---------- HELPERS (latest related email per meeting) ----------
 def _latest_email_for_meeting(db: Session, meeting_id: int) -> Optional[Email]:

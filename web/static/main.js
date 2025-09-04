@@ -755,6 +755,82 @@
         return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
     }
 
+    function buildICSString(input) {
+        const events = Array.isArray(input) ? input : [input];
+        const dtstamp = icsFmt(new Date());
+        const lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Meeting Collector//EN',
+            'CALSCALE:GREGORIAN'
+        ];
+
+        for (const ev of events) {
+            const start = new Date(ev.start);
+            const end = ev.extendedProps?.end
+                ? new Date(ev.extendedProps.end)
+                : new Date(start.getTime() + 60 * 60000);
+
+            const uid = `${ev.id || (crypto.randomUUID && crypto.randomUUID()) || Math.random().toString(36).slice(2)}@meeting-collector`;
+            const title = icsEscape(ev.title || '');
+            const url   = (ev.extendedProps?.link || '').trim();
+
+            lines.push(
+                'BEGIN:VEVENT',
+                `UID:${uid}`,
+                `DTSTAMP:${dtstamp}`,
+                `DTSTART:${icsFmt(start)}`,
+                `DTEND:${icsFmt(end)}`,
+                `SUMMARY:${title}`,
+                url ? `URL:${icsEscape(url)}` : '',
+                url ? `DESCRIPTION:${icsEscape(url)}` : 'DESCRIPTION:',
+                'END:VEVENT'
+            );
+        }
+
+        lines.push('END:VCALENDAR');
+        return lines.filter(Boolean).join('\r\n') + '\r\n';
+    }
+
+    async function sendIcsToRecipients(ev, recipients) {
+        try {
+            const ics = buildICSString(ev);
+            const subject = ev.extendedProps?.subject || ev.title || 'Meeting invite';
+            const bodyText = `Meeting invite${ev.extendedProps?.link ? `\nJoin: ${ev.extendedProps.link}` : ''}`;
+
+            const res = await fetch('/api/v1/meetings/send-ics', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    to: recipients,
+                    subject,
+                    text: bodyText,
+                    filename: suggestedIcsFilename(ev),
+                    ics
+                })
+            });
+
+            if (!res.ok) {
+                const msg = await res.text();
+                throw new Error(msg || 'Failed to send .ics');
+            }
+            alert(`Sent .ics to: ${recipients.join(', ')}`);
+        } catch (err) {
+            console.error(err);
+            alert('Failed to send .ics');
+        }
+    }
+
+    function suggestedIcsFilename(ev) {
+        const when = ev.start ? new Date(ev.start) : new Date();
+        const y = when.getFullYear();
+        const m = String(when.getMonth()+1).padStart(2,'0');
+        const d = String(when.getDate()).padStart(2,'0');
+        return `meeting-${d}_${m}_${y}-${slug(ev.title || 'event')}.ics`;
+    }
+
+
+
     /*function downloadICS(events) {
         const dtstamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
         const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Meeting Collector//EN'];
@@ -1239,24 +1315,71 @@
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
                 },
+                views: {
+                    timeGridWeek: {
+                        dayHeaderFormat: { weekday: 'short', day: 'numeric' }  // π.χ. «Πέμ 4»
+                    }
+                },
+
                 events: calEvents,
                 eventClick(info) {
                     info.jsEvent?.preventDefault?.();
                     openDrawer(info.event);
                 },
                 eventContent(arg) {
-                    const p = (arg.event.extendedProps.platform||'').toLowerCase();
-                    const inner = document.createElement('div');
-                    const map = {
-                        zoom: 'bg-blue-100 text-blue-700',
-                        teams: 'bg-purple-100 text-purple-700',
-                        google: 'bg-green-100 text-green-700'
-                    };
-                    const badge = map[p] || 'bg-slate-100 text-slate-700';
-                    inner.innerHTML = `<div class="truncate">${arg.event.title}</div>
-                             <div class="mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badge}">${p||'other'}</div>`;
-                    return { domNodes: [inner] };
+                    const subject  = (arg.event.extendedProps.subject || arg.event.title || '').trim();
+                    const platform = (arg.event.extendedProps.platform || '').toLowerCase();
+                    if (!subject) return; // άδειο -> άσε το default renderer
+
+                    if (arg.view.type.startsWith('dayGrid')) {
+                        // ===== MONTH (dayGrid*) — κρατάμε το δικό σου chip-style =====
+                        const txt = {
+                            zoom:   'bg-blue-100 text-blue-700 p-1 rounded-md',
+                            teams:  'bg-purple-100 text-purple-700 p-1 rounded-md',
+                            google: 'bg-green-100 text-green-700 p-1 rounded-md'
+                        }[platform] || 'text-slate-700';
+
+                        const w = window.innerWidth;
+                        const limit = (w <= 380) ? 18 : (w < 768) ? 24 : (w < 1024) ? 32 : 40;
+                        const truncated = subject.length > limit ? subject.slice(0, limit - 1) + '…' : subject;
+
+                        const el = document.createElement('div');
+                        el.className = `fc-title-compact ${txt}`;
+                        el.textContent = truncated;
+                        return { domNodes: [el] };
+                    }
+
+                    if (arg.view.type.startsWith('timeGrid')) {
+                        // ===== WEEK/DAY (timeGrid*) — subject με ellipsis, χωρίς chip bg =====
+                        const txtInline =
+                            platform === 'zoom'   ? 'text-blue-700'  :
+                                platform === 'teams'  ? 'text-purple-700':
+                                    platform === 'google' ? 'text-green-700' :
+                                        'text-slate-700';
+
+                        const el = document.createElement('div');
+                        el.className = `fc-title-inline ${txtInline}`;
+                        el.textContent = subject;
+                        return { domNodes: [el] };
+                    }
+
+                    // Άλλα views (π.χ. list*) -> άσε το default
                 }
+                /*,
+
+                                eventContent(arg) {
+                                    const p = (arg.event.extendedProps.platform||'').toLowerCase();
+                                    const inner = document.createElement('div');
+                                    const map = {
+                                        zoom: 'bg-blue-100 text-blue-700',
+                                        teams: 'bg-purple-100 text-purple-700',
+                                        google: 'bg-green-100 text-green-700'
+                                    };
+                                    const badge = map[p] || 'bg-slate-100 text-slate-700';
+                                    inner.innerHTML = `<div class="truncate">${arg.event.title}</div>
+                                             <div class="mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badge}">${p||'other'}</div>`;
+                                    return { domNodes: [inner] };
+                                }*/
             });
             calendar.render();
             setTimeout(() => calendar?.updateSize(), 0);  // ensure first sizing
@@ -1292,6 +1415,8 @@
         }
     }
 
+    const SPRITE = '/static/icons/sprite.svg';
+
     function openDrawer(ev) {
         const drawer = $('#drawer');
         const body = $('#drawer-body');
@@ -1306,15 +1431,69 @@
             <div><span class="text-slate-500">Platform</span><div class="font-medium">${platformBadge((ev.extendedProps.platform||'').toLowerCase())}</div></div>
         </div>
         <!--<div><span class="text-slate-500">Attendees</span><div class="font-medium whitespace-pre-wrap">${ev.extendedProps.attendees||''}</div></div>-->
-        <div><span class="text-slate-500">Attendees</span>${renderAttendeesList(ev.extendedProps.attendees)}</div>
+        <!--<div>
+            <span class="text-slate-500">Attendees</span>
+            // 
+        </div>-->
+        
+        
+        <div>
+            <div class="flex items-center">
+                <span class="text-slate-500 pr-2">Attendees</span>
+
+                <!-- Share all -->
+                <button id="btn-share-ics-all"
+                        class="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-xs hover:bg-slate-50"
+                        title="Send .ics to all" aria-label="Send .ics to all">
+                  <svg class="w-4 h-4" aria-hidden="true">
+                    <use href="${SPRITE}#share-all"></use>
+                  </svg>
+                  <span class="hidden sm:inline">Share all</span>
+                </button>
+            </div>
+
+            ${renderAttendeesList(ev.extendedProps.attendees)}
+        </div>
+        
 
 
         <div class="pt-2 flex gap-2">
-            ${ev.extendedProps.link?`<a href="${ev.extendedProps.link}" target="_blank" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">Join</a>`:''}
-            ${ev.start?`<a href="${googleCalendarUrl(ev)}" target="_blank" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Add to Google Calendar</a>`:''}
+            <!-- Join Button-->
+            <!-- ${ev.extendedProps.link?`<a href="${ev.extendedProps.link}" target="_blank" class="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800">Join</a>`:''}-->
+            ${ev.extendedProps.link?`
+                <a href="${ev.extendedProps.link}" target="_blank"
+                     class="inline-flex items-center gap-2 rounded-xl bg-slate-900 text-white px-3 py-2 text-sm hover:bg-slate-800"
+                     title="Join meeting" aria-label="Join meeting">
+                     <svg class="w-5 h-5" aria-hidden="true">
+                        <use href="${SPRITE}#join-meeting"></use>
+                     </svg>
+                     <span class="hidden sm:inline">Join</span>
+                </a>`:''
+        }
+            <!-- Add to Google Calendar -->            
+            <!-- ${ev.start?`<a href="${googleCalendarUrl(ev)}" target="_blank" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Add to Google Calendar</a>`:''}-->
+            ${ev.start?`
+                <a href="${googleCalendarUrl(ev)}" target="_blank" rel="noopener noreferrer" 
+                    class="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-slate-50"
+                    title="Add to Google Calendar" aria-label="Add to Google Calendar">
+                    <svg class="w-5 h-5" aria-hidden="true">
+                        <use href="${SPRITE}#google"></use>
+                    </svg>
+                    <span class="hidden sm:inline">Add to Google Calendar</span>
+                </a>`:''}
+            
+            
             ${ev.extendedProps.msg_id?`<a href="/emails/by-mid/${encodeURIComponent(ev.extendedProps.msg_id)}/preview" target="_blank" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Preview email</a>`:''}
-            ${ev.extendedProps.msg_id?`<a href="/emails/by-mid/${encodeURIComponent(ev.extendedProps.msg_id)}/download" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Download .eml</a>`:''}
-            <button id="btn-export-ics-one" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Download .ics</button>
+            ${ev.extendedProps.msg_id?`<a href="/emails/by-mid/${encodeURIComponent(ev.extendedProps.msg_id)}/download" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Download.eml</a>`:''}
+<!--            <button id="btn-export-ics-one" class="rounded-xl border px-3 py-2 text-sm hover:bg-slate-50">Download .ics</button>-->
+
+            <!-- Download button-->
+            <button id="btn-export-ics-one" class="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-slate-50" title="Download.ics" aria-label="Download.ics">
+              <svg class="w-5 h-5" aria-hidden="true">
+                <use href="${SPRITE}#download"></use>
+              </svg>
+              <span class="hidden sm:inline">Download.ics</span>
+            </button>
         </div>
         `;
         $$('#drawer [data-close]').forEach(el => el.addEventListener('click', () => drawer.classList.add('hidden')));
@@ -1324,8 +1503,42 @@
             downloadICS(ev);        // ✅ single event (η downloadICS πλέον το δέχεται)
         });
 
+        // Share .ics to ALL attendees
+        $('#btn-share-ics-all')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const to = parseEmails(ev.extendedProps.attendees || '');
+            if (!to.length) { alert('No attendees found'); return; }
+            await sendIcsToRecipients(ev, to);
+        });
+
+        // Share .ics to ONE attendee (event delegation ή per-button attach)
+        $$('#drawer .btn-share-ics-one').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const email = decodeURIComponent(btn.dataset.email || '');
+                if (!email) return;
+                await sendIcsToRecipients(ev, [email]);
+            });
+        });
+
+
         drawer.classList.remove('hidden');
     }
+
+    // function renderAttendeesList(attendees) {
+    //     const emails = parseEmails(attendees);
+    //     if (emails.length === 0) {
+    //         return `<div class="text-slate-400 text-sm">—</div>`;
+    //     }
+    //     return `
+    // <ul class="mt-1 space-y-1">
+    //   ${emails.map(e => `
+    //     <li>
+    //       <a href="mailto:${e}" class="text-blue-600 underline hover:text-blue-700">${escapeHtml(e)}</a>
+    //     </li>
+    //   `).join('')}
+    // </ul>`;
+    // }
 
     function renderAttendeesList(attendees) {
         const emails = parseEmails(attendees);
@@ -1333,13 +1546,24 @@
             return `<div class="text-slate-400 text-sm">—</div>`;
         }
         return `
-    <ul class="mt-1 space-y-1">
-      ${emails.map(e => `
-        <li>
-          <a href="mailto:${e}" class="text-blue-600 underline hover:text-blue-700">${escapeHtml(e)}</a>
-        </li>
-      `).join('')}
-    </ul>`;
+            <ul class="mt-1 space-y-1">
+              ${emails.map(e => `
+                <li class="flex items-center gap-2">
+                  <a href="mailto:${e}" class="text-blue-600 underline hover:text-blue-700">${escapeHtml(e)}</a>
+        
+                  <!-- share-single -->
+                  <button class="btn-share-ics-one inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-slate-50"
+                          data-email="${encodeURIComponent(e)}"
+                          title="Send .ics to ${escapeHtml(e)}" aria-label="Send .ics to ${escapeHtml(e)}">
+                    <svg class="w-4 h-4" aria-hidden="true">
+                      <use href="${SPRITE}#share-single"></use>
+                    </svg>
+                    <span class="hidden sm:inline">Send</span>
+                  </button>
+                </li>
+              `).join('')}
+            </ul>
+            `;
     }
 
     // ---------- Accounts ----------
@@ -1651,6 +1875,7 @@
         startStatusPolling();
         fetchMeetings();
 
+
         const date = new Date();
         const day = date.getDate();
         const monthNames = ["ΙΑΝ", "ΦΕΒ", "ΜΑΡ", "ΑΠΡ", "ΜΑΪ", "ΙΟΥΝ", "ΙΟΥΛ", "ΑΥΓ", "ΣΕΠ", "ΟΚΤ", "ΝΟΕ", "ΔΕΚ"];
@@ -1666,6 +1891,7 @@
         document.addEventListener('input', (e) => {
             if (e.target && e.target.id === 'showNoDate') render();
         }, { capture: true });
+
 
 
         /*$$('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
