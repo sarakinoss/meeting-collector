@@ -6,79 +6,103 @@
 {% block content %}
 <body>
 <header class="topbar">
-  <div class="brand" onclick="location.href='/'">Meeting Collector</div>
-  <nav class="nav-right">
-    {% if user %}
-    <!--<a href="/settings" class="link">Ρυθμίσεις</a>-->
-    <a href="{{ request.url_for('settings_page') }}" class="link">Ρυθμίσεις</a>
-    <span class="sep">|</span>
-    <form action="/logout" method="get" style="display:inline">
-      <button class="btn btn-ghost">Αποσύνδεση</button>
-    </form>
-    {% else %}
-    <a href="{{ request.url_for('logout') }}" class="btn btn-ghost">Αποσύνδεση</a>
-    {% endif %}
-  </nav>
+    <div class="brand" onclick="location.href='/'">Meeting Collector</div>
+    <nav class="nav-right">
+        {% if user %}
+        <!--<a href="/settings" class="link">Ρυθμίσεις</a>-->
+        <a href="{{ request.url_for('settings_page') }}" class="link">Ρυθμίσεις</a>
+        <span class="sep">|</span>
+        <form action="/logout" method="get" style="display:inline">
+            <button class="btn btn-ghost">Αποσύνδεση</button>
+        </form>
+        {% else %}
+        <a href="{{ request.url_for('logout') }}" class="btn btn-ghost">Αποσύνδεση</a>
+        {% endif %}
+    </nav>
 </header>
 
 <main class="container">
-{% if ok %}
-  <div class="banner success">Ο χρήστης δημιουργήθηκε με επιτυχία.</div>
-{% endif %}
-{% if err == 'username' %}
-  <div class="banner error">Υπάρχει ήδη χρήστης με αυτό το username.</div>
-{% elif err %}
-  <div class="banner error">{{ err }}</div>
-{% endif %}
-  <h1>Χρήστες</h1>
+    {% if ok %}
+    <div class="banner success">Ο χρήστης δημιουργήθηκε με επιτυχία.</div>
+    {% endif %}
+    {% if err == 'username' %}
+    <div class="banner error">Υπάρχει ήδη χρήστης με αυτό το username.</div>
+    {% elif err %}
+    <div class="banner error">{{ err }}</div>
+    {% endif %}
+    <h1>Χρήστες</h1>
 
-  <section class="card">
-    <h2>Νέος χρήστης</h2>
-    <form method="post" action="/auth/admin/users" class="grid-form">
-      <label>Username<br><input name="username" required></label>
-      <label>Email<br><input name="email" type="email"></label>
-      <label>Password<br><input name="password" type="password" required></label>
-      <label>Admin;<br>
-        <select name="is_admin"><option value="false">Όχι</option><option value="true">Ναι</option></select>
-      </label>
-      <div style="align-self:end"><button class="btn btn-primary">Προσθήκη</button></div>
-    </form>
-  </section>
+    <section class="card">
+        <h2>Νέος χρήστης</h2>
+        <form method="post" action="/auth/admin/users" class="grid-form">
+            <label>Username<br><input name="username" required></label>
+            <label>Email<br><input name="email" type="email"></label>
+            <label>Password<br><input name="password" type="password" required></label>
+            <label>Admin;<br>
+                <select name="is_admin">
+                    <option value="false">Όχι</option>
+                    <option value="true">Ναι</option>
+                </select>
+            </label>
+            <div style="align-self:end">
+                <button class="btn btn-primary">Προσθήκη</button>
+            </div>
+        </form>
+    </section>
 
-  <section class="card">
-    <h2>Λίστα</h2>
-    <table class="table">
-      <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Admin</th></tr></thead>
-      <tbody>
-      {% for u in users %}
-        <tr>
-          <td>{{ u.id }}</td>
-          <td>{{ u.username }}</td>
-          <td>{{ u.email or "" }}</td>
-          <td>{{ "✓" if u.is_admin else "" }}</td>
-          <td><button class="btn btn-danger" onclick="deleteUser({{ u.id }})">Διαγραφή</button></td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </section>
+    <section class="card">
+        <h2>Λίστα</h2>
+        <table class="table" id="tblUsersAdmins">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Admin</th>
+                <th class="col-actions"></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.username }}</td>
+                <td>{{ u.email or "" }}</td>
+                <td>{{ "✓" if u.is_admin else "" }}</td>
+                <td>
+                    <!--<button class="btn btn-danger" onclick="deleteUser({{ u.id }})">Διαγραφή</button>-->
+                    <button class="btn btn-danger icon-btn inline-flex items-center gap-1"
+                            title="Διαγραφή" onclick="deleteUser({{u.id}})">
+                        <svg class="w-2 h-2" aria-hidden="true" focusable="false">
+                            <use href="/static/icons/sprite.svg#delete"></use>
+                        </svg>
+                        <span class="btn-label">Διαγραφή</span>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </section>
 </main>
 <script>
-async function deleteUser(id){
-  if(!confirm("Να διαγραφεί ο χρήστης #"+id+";")) return;
-  const res = await fetch(`/auth/admin/users/${id}`, { method: "DELETE" });
-  if(res.ok){
-    const tr = document.querySelector(`tr[data-id="${id}"]`);
-    //tr?.parentNode?.removeChild(tr);
-    //tr?.remove();
-    location.reload(); // ανανέωση λίστας
-  }else{
-    const body = await res.json().catch(()=>({}));
-    alert("Σφάλμα: " + (body.detail || res.status));
-  }
-}
+    async function deleteUser(id) {
+        if (!confirm("Να διαγραφεί ο χρήστης #" + id + ";")) return;
+        const res = await fetch(`/auth/admin/users/${id}`, {method: "DELETE"});
+        if (res.ok) {
+            const tr = document.querySelector(`tr[data-id="${id}"]`);
+            //tr?.parentNode?.removeChild(tr);
+            //tr?.remove();
+            location.reload(); // ανανέωση λίστας
+        } else {
+            const body = await res.json().catch(() => ({}));
+            alert("Σφάλμα: " + (body.detail || res.status));
+        }
+    }
 
-   setTimeout(()=>{ document.querySelectorAll('.banner').forEach(b=>b.remove()); }, 3500);
+    setTimeout(() => {
+        document.querySelectorAll('.banner').forEach(b => b.remove());
+    }, 3500);
 </script>
 </body>
 {% endblock %}

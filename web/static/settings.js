@@ -81,6 +81,7 @@
 //fetchAccounts();
 
 const API_ACCOUNTS = "/api/v1/accounts";
+const SPRITE = '/static/icons/sprite.svg';
 
 function banner(type, text){
   const el = document.createElement("div");
@@ -107,7 +108,16 @@ async function loadAccounts(){
       <td>${r.email || ""}</td>
       <td>${r.imap_host}:${r.imap_port} ${r.imap_ssl ? "SSL" : ""}</td>
       <td>${r.smtp_host}:${r.smtp_port} ${r.smtp_ssl ? "SSL" : ""}</td>
-      <td><button class="btn btn-danger" onclick="deleteAccount(${r.id})">Διαγραφή</button></td>
+      <!--<td><button class="btn btn-danger" onclick="deleteAccount(${r.id})">Διαγραφή</button></td>-->
+      <td>
+        <button class="btn btn-danger icon-btn inline-flex items-center gap-1"
+                title="Διαγραφή" onclick="deleteAccount(${r.id})">
+          <svg class="w-2 h-2" aria-hidden="true" focusable="false">
+            <use href="${SPRITE}#delete"></use>
+          </svg>
+          <span class="btn-label">Διαγραφή</span>
+        </button>
+      </td>
     `;
     tb.appendChild(tr);
 

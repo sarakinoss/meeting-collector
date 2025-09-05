@@ -219,6 +219,24 @@
     opacity: 1;
 }
 
+
+/* Εμφάνισε πάντα το label των κουμπιών μέσα στο panel */
+#headerMenuPanel .btn-label { display: inline !important; }
+
+/* Κάθετη στοίχιση και full-width κουμπιά στο panel */
+#headerMenuPanel .menu-actions{
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+}
+#headerMenuPanel .menu-actions button,
+#headerMenuPanel .menu-actions a{
+    width: 100%;
+    justify-content: center;
+}
+
+
+
 /* -------- Base (όλοι) -------- */
 #calendar .fc-header-toolbar{
     display:flex;
@@ -300,21 +318,6 @@
     padding-top:.125rem; padding-bottom:.125rem;
 }
 
-/* Εμφάνισε πάντα το label των κουμπιών μέσα στο panel */
-#headerMenuPanel .btn-label { display: inline !important; }
-
-/* Κάθετη στοίχιση και full-width κουμπιά στο panel */
-#headerMenuPanel .menu-actions{
-    display: flex;
-    flex-direction: column;
-    gap: .75rem;
-}
-#headerMenuPanel .menu-actions button,
-#headerMenuPanel .menu-actions a{
-    width: 100%;
-    justify-content: center;
-}
-
 /* Week/Day: κείμενο subject με ellipsis */
 #calendar .fc-timegrid-event .fc-title-inline{
     font-size: .8125rem;       /* ~13px */
@@ -332,6 +335,8 @@
     text-overflow:ellipsis;
     white-space:nowrap;          /* μία γραμμή + "…" αν δεν χωράει */
 }
+/*#calendar .fc-daygrid-event .fc-title-compact { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#calendar .fc-timegrid-event .fc-title-inline { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }*/
 
 /* lg (≥1024px) */
 @media (min-width:1024px){
@@ -393,5 +398,18 @@
                 );
     }
 }
+
+#calendar .fc-timegrid-event,
+#calendar .fc-timegrid-block-event{
+    background-color: transparent;
+    border-color: transparent;
+}
+
+/*#calendar .fc{
+    --fc-event-bg-color: transparent;
+    --fc-event-border-color: transparent;
+    --fc-event-text-color: inherit;
+}*/
+
 
 
