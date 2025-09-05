@@ -4,6 +4,9 @@
 
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+{% if section == 'notifications' %}
+<link rel="stylesheet" href="{{ url_for('static', path='notifications.css') }}">
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -86,7 +89,7 @@
                 </label>
 
                 <label>
-                    Host
+                    IMAP Host
                     <input name="imap_host" required>
                 </label>
 
@@ -131,7 +134,7 @@
                 <tr>
                     <th class="col-status">Status</th>
                     <th class="col-id">ID</th>
-                    <th class="col-display">Display</th>
+                    <th class="col-display">Display Name</th>
                     <th class="col-email">Email</th>
                     <th class="col-imap">IMAP</th>
                     <th class="col-smtp">SMTP</th>
@@ -142,6 +145,110 @@
                 <!-- γεμίζει από JS -->
                 </tbody>
             </table>
+        </section>
+
+        {% elif section == 'notifications' %}
+
+        <section class="card">
+            <h2>Notifications</h2>
+
+            <form id="formNotifications" class="grid-form">
+                <div class="full-row"><h3>Τι θέλω να λαμβάνω</h3></div>
+
+                <label class="switch-row">
+                    <span class="switch-title">Νέα meetings</span>
+                    <span class="switch-hint">Όταν εντοπίζεται για πρώτη φορά ένα meeting</span>
+                    <span class="switch">
+        <input type="checkbox" name="notify_new_meeting" id="notify_new_meeting">
+        <span class="slider" aria-hidden="true"></span>
+      </span>
+                </label>
+
+                <label class="switch-row">
+                    <span class="switch-title">Αλλαγές σε meetings</span>
+                    <span class="switch-hint">Όταν αλλάζει ώρα/θέμα/συμμετέχοντες</span>
+                    <span class="switch">
+        <input type="checkbox" name="notify_changes" id="notify_changes">
+        <span class="slider" aria-hidden="true"></span>
+      </span>
+                </label>
+
+                <label class="switch-row">
+                    <span class="switch-title">Ακυρώσεις</span>
+                    <span class="switch-hint">Όταν ακυρώνεται/διαγράφεται κάποιο meeting</span>
+                    <span class="switch">
+        <input type="checkbox" name="notify_cancellations" id="notify_cancellations">
+        <span class="slider" aria-hidden="true"></span>
+      </span>
+                </label>
+
+                <div class="full-row"><h3>Σύνοψη (digest)</h3></div>
+
+                <label>
+                    Συχνότητα σύνοψης
+                    <select name="digest_frequency" id="digest_frequency">
+                        <option value="off">Καμία</option>
+                        <option value="daily">Καθημερινά</option>
+                        <option value="weekly">Εβδομαδιαία</option>
+                    </select>
+                </label>
+
+                <label>
+                    Ώρα αποστολής
+                    <input type="time" name="digest_time" id="digest_time" value="09:00">
+                </label>
+
+                <label>
+                    Ημέρες (για καθημερινή σύνοψη)
+                    <select name="digest_days" id="digest_days" multiple>
+                        <option value="mon">Δευ</option><option value="tue">Τρι</option><option value="wed">Τετ</option>
+                        <option value="thu">Πεμ</option><option value="fri">Παρ</option><option value="sat">Σαβ</option><option value="sun">Κυρ</option>
+                    </select>
+                </label>
+
+                <div class="full-row"><h3>Υπενθυμίσεις</h3></div>
+
+                <label>
+                    Πριν την έναρξη
+                    <select name="reminder_before" id="reminder_before">
+                        <option value="off">Καμία</option>
+                        <option value="5">5′</option>
+                        <option value="10">10′</option>
+                        <option value="15">15′</option>
+                        <option value="30">30′</option>
+                        <option value="60">60′</option>
+                    </select>
+                </label>
+
+                <label>
+                    Ήσυχες ώρες (Do Not Disturb)
+                    <div class="inline-fields">
+                        <input type="time" name="quiet_start" id="quiet_start" value="22:00">
+                        <span class="sep">–</span>
+                        <input type="time" name="quiet_end" id="quiet_end" value="07:00">
+                    </div>
+                </label>
+
+                <div class="full-row"><h3>Κανάλι αποστολής</h3></div>
+
+                <label>
+                    Τρόπος
+                    <select name="channel" id="channel">
+                        <option value="email">Email</option>
+                        <option value="none">Κανένα</option>
+                    </select>
+                </label>
+
+                <label>
+                    Παραλήπτης email
+                    <input type="email" name="recipient" id="recipient" placeholder="user@example.com">
+                </label>
+
+                <div class="full-row actions">
+                    <button type="submit" class="btn btn-primary">Αποθήκευση</button>
+                    <button type="button" class="btn btn-ghost" id="btnTestNotif">Δοκιμαστική αποστολή</button>
+                </div>
+            </form>
         </section>
         {% else %}
         <section class="card"><em>Coming soon: {{ section }}</em></section>

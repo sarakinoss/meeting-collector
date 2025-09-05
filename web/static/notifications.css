@@ -1,0 +1,44 @@
+/* Notifications — minimal styles, συμβατά με app.css */
+
+/* Inline μικρά πεδία (quiet hours) */
+.inline-fields{
+    display:flex; align-items:center; gap:.5rem;
+}
+.inline-fields .sep{ opacity:.6; }
+
+/* Γραμμές με switch (τίτλος + υπότιτλος + διακόπτης δεξιά) */
+.switch-row{
+    display:grid;
+    grid-template-columns: 1fr auto;     /* κείμενο | switch */
+    gap:.25rem .75rem;
+    align-items:center;
+    padding:.25rem 0;
+}
+.switch-row .switch-title{ font-weight:600; }
+.switch-row .switch-hint{ color:#64748b; font-size:.875rem; grid-column:1 / 2; }
+
+/* Toggle switch */
+.switch{
+    position:relative; width:44px; height:24px;
+}
+.switch input{
+    position:absolute; inset:0; opacity:0; cursor:pointer;
+}
+.switch .slider{
+    position:absolute; inset:0;
+    background:#e2e8f0; border-radius:999px;
+    transition:.2s;
+}
+.switch .slider::after{
+    content:""; position:absolute; top:3px; left:3px;
+    width:18px; height:18px; background:#fff; border-radius:50%;
+    box-shadow:0 1px 2px rgba(0,0,0,.15);
+    transition:.2s;
+}
+.switch input:checked + .slider{ background:#0ea5e9; }       /* primary */
+.switch input:checked + .slider::after{ transform:translateX(20px); }
+
+/* Breakpoints — δεν πειράζουμε layout (το κάνει ήδη το app.css) */
+@media (max-width:767.98px){
+    .inline-fields{ gap:.375rem; }
+}

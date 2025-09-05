@@ -120,3 +120,28 @@ class MeetingEmail(Base):
     meeting_id: Mapped[int] = mapped_column(ForeignKey("meetings.id"), primary_key=True)
     email_id: Mapped[int] = mapped_column(ForeignKey("emails.id"), primary_key=True)
     role: Mapped[str | None] = mapped_column(String(16))  # invite/update/cancel
+
+class UserPreferences(Base):
+    __tablename__ = "userPreferences"  # όπως ζήτησες
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, nullable=False)
+
+    # Notifications: daily summary
+    not_daily_hour: Mapped[str]  = mapped_column(String(5), nullable=False, default="09:00")  # 'HH:MM'
+    not_days:       Mapped[str]  = mapped_column(Text, nullable=False, default="")           # CSV: 'mon,tue,...'
+
+    # Notifications: reminder πριν το meeting
+    not_prior_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)             # NULL = off
+
+    # SMTP account per user (προαιρετικά πεδία)
+    not_smtp_host:     Mapped[str | None] = mapped_column(String(255))
+    not_smtp_port:     Mapped[int | None] = mapped_column(Integer)
+    not_user_smtp:     Mapped[str | None] = mapped_column(String(255))
+    not_pass_smtp:     Mapped[str | None] = mapped_column(Text)  # (μπορούμε αργότερα να το κάνουμε *_enc)
+
+    # Προαιρετικά: security mode (none/ssl/starttls)
+    # not_smtp_security: Mapped[str] = mapped_column(String(16), nullable=False, default="none")
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

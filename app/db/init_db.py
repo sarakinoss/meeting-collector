@@ -36,6 +36,14 @@ from sqlalchemy.orm import Session
 #         db.execute(stmt)
 #         db.commit()
 
+# Τι κάνει το init
+#
+# Στο init_db.py, η init_db() καλεί μία φορά Base.metadata.create_all(bind=engine) ⇒ δημιουργεί ό,τι πίνακες λείπουν, δεν κάνει drop/επαν-αρχικοποίηση. Μετά εξασφαλίζει να υπάρχει ένα row στο job_state για το collector.
+#
+# Το Base και όλα τα μοντέλα είναι στο app.db.models και τα βλέπει το create_all. Άρα αν προσθέσουμε καινούργιο model εκεί, ο πίνακας θα δημιουργηθεί αυτόματα στο επόμενο init_db().
+#
+# Το engine/session ορίζονται κεντρικά στο session.py με create_engine(DATABASE_URL) και SessionLocal, οκ.
+
 def init_db():
     Base.metadata.create_all(bind=engine)
 
