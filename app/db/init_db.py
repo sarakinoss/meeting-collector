@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 from sqlalchemy import inspect, select
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.dialects.postgresql import insert
 from app.db.session import engine, SessionLocal
@@ -66,3 +66,35 @@ def init_db():
             except IntegrityError:
                 # Σε σπάνιο race condition (διπλή διεργασία) το αγνοούμε
                 db.rollback()
+
+
+def dev_upgrade_schema_for_notifications_and_folders():
+    """
+    DEV-only helper: Φτιάχνει/συμπληρώνει τα απαραίτητα tables/στήλες ΧΩΡΙΣ migrations.
+    Ασφαλές να τρέξει πολλές φορές (IF NOT EXISTS / ADD COLUMN IF NOT EXISTS).
+    """
+    ddl = """
+    -- 1) MailAccountFolderPref (νέος πίνακας)
+    CREATE TABLE IF NOT EXISTS mail_account_folder_prefs (
+        id               SERIAL PRIMARY KEY,
+        user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        mail_account_id  INTEGER NOT NULL REFERENCES mail_accounts(id) ON DELETE CASCADE,
+        folder           TEXT    NOT NULL,
+        include          BOOLEAN NOT NULL DEFAULT TRUE,
+        CONSTRAINT uq_mfp UNIQUE (user_id, mail_account_id, folder)
+    );
+    -- TODO: CREATE INDEX CONCURRENTLY idx_mfp_user_acc ON mail_account_folder_prefs(user_id, mail_account_id);
+
+    -- 2) UserPreferences — πρόσθετες στήλες notifications/SMTP (ασφαλή if-not-exists)
+    ALTER TABLE "userPreferences"
+        ADD COLUMN IF NOT EXISTS not_prior_minutes INTEGER,
+        ADD COLUMN IF NOT EXISTS not_smtp_host    VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS not_smtp_port    INTEGER,
+        ADD COLUMN IF NOT EXISTS not_user_smtp    VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS not_pass_smtp    TEXT,
+        ADD COLUMN IF NOT EXISTS not_receiver     VARCHAR(255);
+    -- TODO: CREATE INDEX CONCURRENTLY idx_userprefs_user ON "userPreferences"(user_id);
+    """
+
+    with engine.begin() as conn:
+        conn.execute(text(ddl))

@@ -1187,11 +1187,23 @@
             if (fill) fill.style.width = `${Math.max(0, Math.min(100, prg))}%`;
             if (text) text.textContent = running ? (msg || 'collecting…') : 'idle';
 
-            // --- header thin loader binding
-            if (running) {
-                startHeaderLoading(_loaderColor);
-            } else if (_holdUntilIdle) {
-                hideHeaderLoadingNow();
+            // // --- header thin loader binding
+            // if (running) {
+            //     startHeaderLoading(_loaderColor);
+            // } else {
+            //     hideHeaderLoadingNow();
+            // }
+
+            const host = document.getElementById('headerLoader');
+            if (host) {
+                const isShown = !host.classList.contains('hidden');
+                if (running && !isShown) {
+                    // άνοιξε μία φορά όταν περάσουμε σε running
+                    startHeaderLoading(_loaderColor);
+                } else if (!running && isShown) {
+                    // κλείσε μία φορά όταν περάσουμε σε idle/error
+                    hideHeaderLoadingNow();
+                }
             }
 
             // --- compact sidebar status (αν έχεις βάλει το UI)
@@ -1986,7 +1998,13 @@
             if (e.target && e.target.id === 'showNoDate') render();
         }, { capture: true });
 
-
+        window.addEventListener('pageshow', () => {
+            // τραβάει αμέσως το status ώστε να συγχρονιστεί UI μετά από back
+            try { pollStatus(); } catch {}
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) { try { pollStatus(); } catch {} }
+        });
 
         /*$$('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
             $$('.tab-btn').forEach(b => b.classList.remove('bg-slate-900','text-white','active'));

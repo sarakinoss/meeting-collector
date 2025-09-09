@@ -1,0 +1,77 @@
+/* ================ Profile (minimal UI) ================ */
+
+/* grid φόρμας όπως στις άλλες καρτέλες */
+#formProfile.grid-form{
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0,1fr)); /* desktop */
+    gap: 10px 12px;
+}
+#formProfile .full-row{ grid-column: 1 / -1; }
+
+/* τίτλοι */
+#formProfile h3{ font-size:1rem; margin:.25rem 0 .25rem; }
+#formProfile .muted{ color:#94a3b8; font-size:.9rem; }
+
+/* actions δεξιά, wrap σε mobile */
+#formProfile .actions{
+    display:flex; gap:.5rem; flex-wrap:wrap; justify-content:flex-end;
+}
+
+/* containers λογαριασμών/φακέλων */
+#formProfile .accounts-folders{ display:grid; gap:12px; }
+#formProfile .accounts-folders .placeholder{
+    color:#94a3b8; font-style:italic;
+}
+
+/* block ανά λογαριασμό */
+#formProfile .account-block{
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:10px;
+    padding:10px 12px;
+    background: rgba(148,163,184,.05);
+}
+
+/* header λογαριασμού */
+#formProfile .acc-header{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px; margin-bottom:8px;
+}
+#formProfile .acc-title{ font-weight:600; }
+
+/* grid φακέλων – ίσες στήλες / ομοιόμορφα tiles */
+#formProfile .folders-grid{
+    display:grid;
+    grid-template-columns: repeat(6, 1fr);  /* desktop: μέχρι 6 σε σειρά */
+    gap:10px;
+}
+
+/* checkbox tile (ίδια επιφάνεια, μικρό radius) */
+#formProfile .folder-check{
+    box-sizing:border-box;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%;
+    min-height:38px;
+    padding:6px 10px;
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:12px;
+    background:rgba(148,163,184,.06);
+    cursor:pointer;
+    white-space:nowrap;
+}
+#formProfile .folder-check input{ margin:0; }
+#formProfile .folder-check .label-text{ font-size:.9rem; line-height:1; }
+#formProfile .folder-check:has(input:checked){
+    background:rgba(56,189,248,.15);
+    border-color:rgba(56,189,248,.45);
+}
+
+/* breakpoints */
+@media (min-width:768px) and (max-width:1023.98px){
+    #formProfile.grid-form{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    #formProfile .folders-grid{ grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width:767.98px){
+    #formProfile.grid-form{ grid-template-columns: 1fr; }
+    #formProfile .actions > *{ width:100%; }
+    #formProfile .folders-grid{ grid-template-columns: repeat(2, 1fr); }
+}

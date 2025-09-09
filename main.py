@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -19,6 +20,8 @@ from web.pages import router as pages_router
 from app.api.v1.accounts import router as accounts_router
 from app.api.v1.meetings import router as meetings_router
 from app.api.v1.emails import router as emails_router
+from app.api.v1.notifications import router as notifications_router, reminders_scheduler_loop
+from app.api.v1.profile import router as profile_router
 
 # Load secret key
 from app.core.config import SESSION_SECRET
@@ -45,6 +48,8 @@ app.include_router(pages_router)            # /, /accounts (HTML pages)
 app.include_router(accounts_router)         # /api/v1/accounts
 app.include_router(meetings_router)         # /api/v1/meetings/*
 app.include_router(emails_router)           # /api/v1/emails/*
+app.include_router(notifications_router)   # /api/v1/notifications
+app.include_router(profile_router)          #/api/v1/profile
 
 
 # init DB (δημιουργεί tables αν λείπουν)
@@ -67,9 +72,19 @@ def _get_user(request: Request) -> User | None:
     with SessionLocal() as db:
         return db.get(User, uid)
 
+# Αν τρέχεις με gunicorn/uvicorn workers>1, θα ξεκινήσει ένας scheduler ανά worker.
+# Για τώρα που τεστάρουμε, κράτα 1 worker.
+# Για production, θα το κάνουμε leader-only ή external scheduler (Celery/APScheduler).
+
 # start scheduler (optional during early auth UI testing)
 if not _no_users_exist():
     start_scheduler()
+
+
+@app.on_event("startup")
+async def _start_schedulers():
+    # ξεκίνα το reminders loop (fire-and-forget task)
+    asyncio.create_task(reminders_scheduler_loop())
 
 @app.exception_handler(StarletteHTTPException)
 async def auth_redirect_handler(request: Request, exc: StarletteHTTPException):

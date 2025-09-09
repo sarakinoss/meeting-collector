@@ -1,6 +1,6 @@
 from __future__ import annotations
 from sqlalchemy.orm import declarative_base, relationship, Mapped, mapped_column
-from sqlalchemy import String, Text, DateTime, Boolean, ForeignKey, Integer, Enum
+from sqlalchemy import String, Text, DateTime, Boolean, ForeignKey, Integer, Enum, UniqueConstraint
 from datetime import datetime, timezone
 import enum
 
@@ -121,27 +121,62 @@ class MeetingEmail(Base):
     email_id: Mapped[int] = mapped_column(ForeignKey("emails.id"), primary_key=True)
     role: Mapped[str | None] = mapped_column(String(16))  # invite/update/cancel
 
+
+
 class UserPreferences(Base):
-    __tablename__ = "userPreferences"  # όπως ζήτησες
+    __tablename__ = "userPreferences"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, nullable=False)
 
-    # Notifications: daily summary
-    not_daily_hour: Mapped[str]  = mapped_column(String(5), nullable=False, default="09:00")  # 'HH:MM'
-    not_days:       Mapped[str]  = mapped_column(Text, nullable=False, default="")           # CSV: 'mon,tue,...'
+    # Daily summary
+    not_daily_hour: Mapped[str] = mapped_column(String(5), nullable=False, default="07:00")  # 'HH:MM'
+    not_days: Mapped[str]       = mapped_column(Text,       nullable=False, default="")      # CSV: 'mon,tue,...'
 
-    # Notifications: reminder πριν το meeting
-    not_prior_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)             # NULL = off
+    # Reminder πριν το meeting (NULL = off)
+    not_prior_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # SMTP account per user (προαιρετικά πεδία)
-    not_smtp_host:     Mapped[str | None] = mapped_column(String(255))
-    not_smtp_port:     Mapped[int | None] = mapped_column(Integer)
-    not_user_smtp:     Mapped[str | None] = mapped_column(String(255))
-    not_pass_smtp:     Mapped[str | None] = mapped_column(Text)  # (μπορούμε αργότερα να το κάνουμε *_enc)
+    # SMTP (αποστολέας ειδοποιήσεων)
+    not_smtp_host: Mapped[str | None] = mapped_column(String(255))
+    not_smtp_port: Mapped[int | None] = mapped_column(Integer)          # π.χ. 465/587
+    not_user_smtp: Mapped[str | None] = mapped_column(String(255))      # username / from
+    not_pass_smtp: Mapped[str | None] = mapped_column(Text)             # (προαιρετικά κρυπτογράφηση αργότερα)
 
-    # Προαιρετικά: security mode (none/ssl/starttls)
-    # not_smtp_security: Mapped[str] = mapped_column(String(16), nullable=False, default="none")
+    # Παραλήπτης ειδοποιήσεων
+    not_receiver: Mapped[str | None] = mapped_column(String(255))       # email που θα λάβει τα notifications
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+    prof_retention_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class SentNotification(Base):
+    __tablename__ = "sent_notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    meeting_id: Mapped[int] = mapped_column(ForeignKey("meetings.id"), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="reminder")  # μελλοντικά: 'daily'
+    scheduled_for: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)  # στο λεπτό
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "meeting_id", "kind", "scheduled_for", name="uq_sent_once_per_minute"),
+    )
+
+class MailAccountFolderPref(Base):
+    """
+    Επιλογές φακέλων ανά χρήστη & mail account (πολλές εγγραφές).
+    include = TRUE => κάνε parsing τον φάκελο
+    """
+    __tablename__ = "mail_account_folder_prefs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    mail_account_id: Mapped[int] = mapped_column(ForeignKey("mail_accounts.id"), nullable=False)
+    folder: Mapped[str] = mapped_column(Text, nullable=False)
+    include: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    # Στο DB εφαρμόζουμε UNIQUE (user_id, mail_account_id, folder)
+    # Τα indexes θα μπουν αργότερα με migration.

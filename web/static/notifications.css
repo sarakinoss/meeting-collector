@@ -1,44 +1,137 @@
-/* Notifications — minimal styles, συμβατά με app.css */
+/* ===================== Notifications (compact & scoped) ===================== */
 
-/* Inline μικρά πεδία (quiet hours) */
-.inline-fields{
-    display:flex; align-items:center; gap:.5rem;
-}
-.inline-fields .sep{ opacity:.6; }
-
-/* Γραμμές με switch (τίτλος + υπότιτλος + διακόπτης δεξιά) */
-.switch-row{
+/* Grid του section */
+#formNotifications.grid-form{
     display:grid;
-    grid-template-columns: 1fr auto;     /* κείμενο | switch */
-    gap:.25rem .75rem;
-    align-items:center;
-    padding:.25rem 0;
+    grid-template-columns: repeat(3, minmax(0,1fr)); /* desktop */
+    gap: 10px 12px;
 }
-.switch-row .switch-title{ font-weight:600; }
-.switch-row .switch-hint{ color:#64748b; font-size:.875rem; grid-column:1 / 2; }
 
-/* Toggle switch */
-.switch{
-    position:relative; width:44px; height:24px;
-}
-.switch input{
-    position:absolute; inset:0; opacity:0; cursor:pointer;
-}
-.switch .slider{
-    position:absolute; inset:0;
-    background:#e2e8f0; border-radius:999px;
-    transition:.2s;
-}
-.switch .slider::after{
-    content:""; position:absolute; top:3px; left:3px;
-    width:18px; height:18px; background:#fff; border-radius:50%;
-    box-shadow:0 1px 2px rgba(0,0,0,.15);
-    transition:.2s;
-}
-.switch input:checked + .slider{ background:#0ea5e9; }       /* primary */
-.switch input:checked + .slider::after{ transform:translateX(20px); }
+/* Πλήρης γραμμή */
+#formNotifications .full-row{ grid-column: 1 / -1; }
 
-/* Breakpoints — δεν πειράζουμε layout (το κάνει ήδη το app.css) */
+/* Τίτλοι/υπότιτλοι */
+#formNotifications h2{ font-size:1.25rem; margin:0 0 .5rem; }
+#formNotifications h3{ font-size:1rem;   margin:.25rem 0 .25rem; }
+
+/* Inputs/selects */
+#formNotifications label,
+#formNotifications fieldset{ min-width:0; }
+#formNotifications input,
+#formNotifications select{ width:100%; }
+
+/* Time & minutes πιο «σφιχτά» */
+#formNotifications input[type="time"],
+#formNotifications select#not_prior_minutes{
+    height:32px; padding:4px 8px; font-size:.9rem; line-height:1.1;
+}
+#formNotifications input[type="time"]{ max-width:180px; }
+#formNotifications select#not_prior_minutes{ max-width:140px; }
+
+/* Fieldset ημέρας – διακριτικό */
+#formNotifications fieldset{
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:10px;
+    padding:10px 12px;
+    background: rgba(148,163,184,.05);
+}
+#formNotifications .legend-label{ font-size:.85rem; color:#94a3b8; }
+#formNotifications .hint{ margin:.25rem 0 0; color:#94a3b8; font-size:.85rem; }
+
+/* ===== "Όλες" centered, επάνω ===== */
+#formNotifications .weekday-row{
+    margin:6px 0 8px;
+    display:flex; justify-content:center;
+}
+#formNotifications .weekday-row .check{
+    width:clamp(140px, 18%, 240px);
+}
+
+/* ===== Weekday chips (ίση επιφάνεια) ===== */
+#formNotifications .weekday-grid{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);   /* desktop: 7 στη σειρά */
+    gap: 10px;                                /* ίσες αποστάσεις */
+    align-items:stretch;
+    justify-items:stretch;
+}
+
+#formNotifications .check{
+    box-sizing:border-box;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%;
+    min-height:38px;                           /* ίδια επιφάνεια */
+    padding:6px 10px;
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:12px;                        /* μικρό radius */
+    background:rgba(148,163,184,.06);
+    font-size:.9rem; line-height:1; white-space:nowrap;
+    cursor:pointer;
+}
+#formNotifications .check input{ margin:0; }
+#formNotifications .check > span{ padding:0; background:none; border:0; }
+#formNotifications .check:has(input:checked){
+    background:rgba(56,189,248,.15);
+    border-color:rgba(56,189,248,.45);
+}
+
+/* ===== Switch rows (future features) ===== */
+#formNotifications .switch-row{
+    display:grid; grid-template-columns:1fr auto; grid-template-rows:auto auto;
+    align-items:center; gap:2px 12px; padding:6px 0;
+    border-top:1px dashed rgba(148,163,184,.3);
+}
+#formNotifications .switch-title{ font-weight:600; }
+#formNotifications .switch-hint{ color:#94a3b8; font-size:.85rem; grid-column:1 / 2; }
+#formNotifications .switch{ position:relative; width:42px; height:24px; grid-column:2 / 3; }
+#formNotifications .switch input{
+    appearance:none; -webkit-appearance:none; position:absolute; inset:0; margin:0; opacity:0;
+}
+#formNotifications .switch .slider{
+    position:absolute; inset:0; background:#cbd5e1; border-radius:999px; transition:background .2s;
+}
+#formNotifications .switch .slider::after{
+    content:""; position:absolute; left:3px; top:3px; width:18px; height:18px;
+    background:#fff; border-radius:50%; box-shadow:0 1px 2px rgba(0,0,0,.12); transition:transform .2s;
+}
+#formNotifications .switch input:checked + .slider{ background:#0ea5e9; }
+#formNotifications .switch input:checked + .slider::after{ transform:translateX(18px); }
+
+/* ===== SMTP layout: 1×4 / 2×2 / 4×1 ===== */
+#formNotifications .smtp-grid{
+    display:grid; gap:10px 12px;
+    grid-template-columns: repeat(4, minmax(0,1fr));   /* desktop */
+}
+
+/* ===== Actions ===== */
+#formNotifications .actions{
+    display:flex; gap:.5rem; flex-wrap:wrap; justify-content:flex-end;
+}
+#formNotifications .actions .btn{ padding:.45rem .7rem; font-size:.9rem; line-height:1.1; }
+
+/* ===== Breakpoints ===== */
+/* tablet (md) */
+@media (min-width:768px) and (max-width:1023.98px){
+    #formNotifications.grid-form{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    #formNotifications .smtp-grid{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    #formNotifications .weekday-grid{ grid-template-columns: repeat(4, 1fr); }
+    /* time & minutes ίδιο πλάτος (full row) */
+    #formNotifications input[type="time"],
+    #formNotifications select#not_prior_minutes{ max-width:none; }
+    #formNotifications .check{ min-height:34px; padding:5px 8px; font-size:.875rem; }
+}
+/* mobile (sm) */
 @media (max-width:767.98px){
-    .inline-fields{ gap:.375rem; }
+    #formNotifications.grid-form{ grid-template-columns: 1fr; }
+    #formNotifications .actions > *{ width:100%; }
+    #formNotifications .weekday-grid{ grid-template-columns: repeat(2, 1fr); }
+    #formNotifications .smtp-grid{ grid-template-columns: 1fr; }
+    #formNotifications input[type="time"],
+    #formNotifications select#not_prior_minutes{ max-width:none; }
+    #formNotifications .check{ min-height:34px; padding:5px 8px; font-size:.875rem; }
+}
+/* xs */
+@media (max-width:380px){
+    #formNotifications .switch{ width:40px; height:22px; }
+    #formNotifications .switch .slider::after{ width:16px; height:16px; top:3px; left:3px; }
 }

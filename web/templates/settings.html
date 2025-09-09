@@ -4,10 +4,18 @@
 
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
-{% if section == 'notifications' %}
+
+{% if (active if active is defined and active else 'email-accounts') == 'email-accounts' %}
+<link rel="stylesheet" href="{{ url_for('static', path='email-accounts.css') }}">
+{% elif (active if active is defined and active else 'email-accounts') == 'notifications' %}
 <link rel="stylesheet" href="{{ url_for('static', path='notifications.css') }}">
+{% elif (active if active is defined and active else 'email-accounts') == 'profile' %}
+<link rel="stylesheet" href="{{ url_for('static', path='profile.css') }}">
+{% elif (active if active is defined and active else 'email-accounts') == 'security' %}
+<link rel="stylesheet" href="{{ url_for('static', path='security.css') }}">
 {% endif %}
 {% endblock %}
+
 
 {% block content %}
 {% set section = (active if active is defined and active else 'email-accounts') %}
@@ -54,18 +62,73 @@
 
 
     <main class="settings-content">
-        <header class="settings-header">
+        <!--<header class="settings-header">
             <h1 class="settings-breadcrumb">{{ 'Email Accounts' if active == 'email-accounts' else active|capitalize
                 }}</h1>
-            <!--            <div class="settings-breadcrumb">{{ 'Email Accounts' if active == 'email-accounts' else active|capitalize }}-->
-            <!--                <div class="settings-breadcrumb">{{ section|capitalize }}-->
-            <!--            </div>-->
-        </header>
+            &lt;!&ndash;            <div class="settings-breadcrumb">{{ 'Email Accounts' if active == 'email-accounts' else active|capitalize }}&ndash;&gt;
+            &lt;!&ndash;                <div class="settings-breadcrumb">{{ section|capitalize }}&ndash;&gt;
+            &lt;!&ndash;            </div>&ndash;&gt;
+        </header>-->
 
         <!-- Banner area (JS θα εγχέει εδώ flash μηνύματα) -->
         <div id="banner-area"></div>
 
-        {% if section == 'email-accounts' %}
+
+        {% if section == 'profile' %}
+
+        <section class="card">
+            <h2>Profile</h2>
+
+            <form id="formProfile" class="grid-form">
+
+                <!-- Διατήρηση δεδομένων -->
+                <div class="full-row"><h3>Διατήρηση δεδομένων</h3></div>
+
+                <label>
+                    Μήνες διατήρησης meetings
+                    <input type="number"
+                           id="prof_retention_months"
+                           name="prof_retention_months"
+                           min="1" max="60" step="1"
+                           placeholder="12">
+                </label>
+
+                <!-- Φάκελοι για parsing -->
+                <div class="full-row"><h3>Φάκελοι για parsing</h3></div>
+                <p class="muted full-row">
+                    Επέλεξε ποιους φακέλους θα σαρώνει ο parser. Αν επιλέξεις μόνο έναν, θα γίνεται parsing αποκλειστικά σε αυτόν.
+                </p>
+
+                <!-- Δυναμικό container που θα γεμίζει από JS με τους λογαριασμούς & φακέλους -->
+                <div id="prof-folders" class="accounts-folders full-row">
+                    <!-- JS θα προσθέσει blocks ανά λογαριασμό:
+                         <div class="account-block" data-account-id="12">
+                           <div class="acc-header">
+                             <div class="acc-title">it gmail — it.helioaiolis@gmail.com</div>
+                             <button type="button" class="btn btn-ghost btn-sm" data-refresh-folders>Ανανέωση φακέλων</button>
+                           </div>
+                           <div class="folders-grid">
+                             <label class="folder-check">
+                               <input type="checkbox" name="prof_folders[12]" value="INBOX">
+                               <span class="label-text">Inbox</span>
+                             </label>
+                             ...
+                           </div>
+                         </div>
+                    -->
+                    <div class="placeholder">
+                        Δεν έχουν φορτωθεί ακόμη οι φάκελοι. Πάτησε «Φόρτωση φακέλων».
+                    </div>
+                </div>
+
+                <div class="full-row actions">
+                    <button type="button" class="btn" id="btnLoadFolders">Φόρτωση φακέλων</button>
+                    <button type="submit" class="btn btn-primary" id="btnSaveProfile">Αποθήκευση</button>
+                </div>
+            </form>
+        </section>
+
+        {% elif section == 'email-accounts' %}
         <section class="card">
             <h2>Προσθήκη Λογαριασμού Email</h2>
             <form id="formAddAccount" class="grid-form">
@@ -153,15 +216,62 @@
             <h2>Notifications</h2>
 
             <form id="formNotifications" class="grid-form">
-                <div class="full-row"><h3>Τι θέλω να λαμβάνω</h3></div>
+
+                <!-- Ημερήσια σύνοψη -->
+                <div class="full-row"><h3>Ημερήσια σύνοψη</h3></div>
+
+                <label>
+                    Ώρα αποστολής
+                    <input type="time" name="not_daily_hour" id="not_daily_hour" required value="07:00">
+                </label>
+
+                <fieldset class="full-row">
+                    <legend class="legend-label">Μέρες αποστολής</legend>
+
+                    <div class="weekday-row">
+                        <label class="check"><input type="checkbox" id="not_days_all"> <span>Όλες</span></label>
+                    </div>
+
+                    <div class="weekday-grid">
+                        <label class="check"><input type="checkbox" name="not_days" value="mon"><span>Δευτέρα</span></label>
+                        <label class="check"><input type="checkbox" name="not_days" value="tue"><span>Τρίτη</span></label>
+                        <label class="check"><input type="checkbox" name="not_days" value="wed"><span>Τετάρτη</span></label>
+                        <label class="check"><input type="checkbox" name="not_days" value="thu"><span>Πέμπτη</span></label>
+                        <label class="check"><input type="checkbox" name="not_days" value="fri"><span>Παρασκευή</span></label>
+                        <label class="check"><input type="checkbox" name="not_days" value="sat"><span>Σάββατο</span></label>
+                        <label class="check"><input type="checkbox" name="not_days" value="sun"><span>Κυριακή</span></label>
+                    </div>
+
+                    <p class="hint">Αν δεν υπάρχει meeting για την ημέρα, θα σταλεί ενημέρωση “Δεν έχει οριστεί κανένα
+                        meeting για σήμερα προς το παρόν”.</p>
+                </fieldset>
+
+
+                <div class="full-row"><h3>Υπενθυμίσεις</h3></div>
+
+                <label>
+                    Χρόνος πριν την έναρξη
+                    <select name="not_prior_minutes" id="not_prior_minutes">
+                        <option value="off">Καμία</option>
+                        <option value="5">5′</option>
+                        <option value="10">10′</option>
+                        <option value="15">15′</option>
+                        <option value="30">30′</option>
+                        <option value="60">60′</option>
+                    </select>
+                </label>
+
+
+                <div class="full-row"><h3>Επιπλέον υπενθυμίσεις (<span style="color:red"> Not yet implemented</span>)
+                </h3></div>
 
                 <label class="switch-row">
                     <span class="switch-title">Νέα meetings</span>
                     <span class="switch-hint">Όταν εντοπίζεται για πρώτη φορά ένα meeting</span>
                     <span class="switch">
-        <input type="checkbox" name="notify_new_meeting" id="notify_new_meeting">
-        <span class="slider" aria-hidden="true"></span>
-      </span>
+                        <input type="checkbox" name="notify_new_meeting" id="notify_new_meeting">
+                        <span class="slider" aria-hidden="true"></span>
+                    </span>
                 </label>
 
                 <label class="switch-row">
@@ -182,74 +292,54 @@
       </span>
                 </label>
 
-                <div class="full-row"><h3>Σύνοψη (digest)</h3></div>
+                <!-- SMTP λογαριασμός για αποστολές -->
+                <div class="full-row"><h3>SMTP λογαριασμός</h3></div>
 
+                <div class="smtp-grid full-row">
+                    <label>
+                        SMTP User
+                        <input type="text" name="not_user_smtp" id="not_user_smtp" placeholder="user@example.com">
+                    </label>
+
+                    <label>
+                        SMTP Password
+                        <input type="password" name="not_pass_smtp" id="not_pass_smtp" placeholder="••••••••">
+                    </label>
+
+                    <label>
+                        SMTP Host
+                        <input type="text" name="not_smtp_host" id="not_smtp_host" placeholder="smtp.example.com">
+                    </label>
+
+                    <label>
+                        SMTP Port
+                        <input type="number" name="not_smtp_port" id="not_smtp_port" inputmode="numeric" min="1" max="65535" placeholder="465">
+                    </label>
+                </div>
+
+
+                <div class="full-row"><h3>Παραλήπτης Ειδοποιήσεων</h3></div>
                 <label>
-                    Συχνότητα σύνοψης
-                    <select name="digest_frequency" id="digest_frequency">
-                        <option value="off">Καμία</option>
-                        <option value="daily">Καθημερινά</option>
-                        <option value="weekly">Εβδομαδιαία</option>
-                    </select>
-                </label>
-
-                <label>
-                    Ώρα αποστολής
-                    <input type="time" name="digest_time" id="digest_time" value="09:00">
-                </label>
-
-                <label>
-                    Ημέρες (για καθημερινή σύνοψη)
-                    <select name="digest_days" id="digest_days" multiple>
-                        <option value="mon">Δευ</option><option value="tue">Τρι</option><option value="wed">Τετ</option>
-                        <option value="thu">Πεμ</option><option value="fri">Παρ</option><option value="sat">Σαβ</option><option value="sun">Κυρ</option>
-                    </select>
-                </label>
-
-                <div class="full-row"><h3>Υπενθυμίσεις</h3></div>
-
-                <label>
-                    Πριν την έναρξη
-                    <select name="reminder_before" id="reminder_before">
-                        <option value="off">Καμία</option>
-                        <option value="5">5′</option>
-                        <option value="10">10′</option>
-                        <option value="15">15′</option>
-                        <option value="30">30′</option>
-                        <option value="60">60′</option>
-                    </select>
-                </label>
-
-                <label>
-                    Ήσυχες ώρες (Do Not Disturb)
-                    <div class="inline-fields">
-                        <input type="time" name="quiet_start" id="quiet_start" value="22:00">
-                        <span class="sep">–</span>
-                        <input type="time" name="quiet_end" id="quiet_end" value="07:00">
-                    </div>
-                </label>
-
-                <div class="full-row"><h3>Κανάλι αποστολής</h3></div>
-
-                <label>
-                    Τρόπος
-                    <select name="channel" id="channel">
-                        <option value="email">Email</option>
-                        <option value="none">Κανένα</option>
-                    </select>
-                </label>
-
-                <label>
-                    Παραλήπτης email
-                    <input type="email" name="recipient" id="recipient" placeholder="user@example.com">
+                    Email
+                    <input type="text" name="not_receiver" id="not_receiver" placeholder="user@example.com">
                 </label>
 
                 <div class="full-row actions">
-                    <button type="submit" class="btn btn-primary">Αποθήκευση</button>
+                    <button type="submit" class="btn btn-primary" id="btnSaveNotifications">Αποθήκευση</button>
                     <button type="button" class="btn btn-ghost" id="btnTestNotif">Δοκιμαστική αποστολή</button>
+                    <button type="button" class="btn" id="btnSendSummaryNow">Αποστολή τώρα</button>
+                    <button type="button" class="btn" id="btnRemindersNow">Έλεγχος υπενθυμίσεων τώρα</button>
+
                 </div>
+
             </form>
         </section>
+
+
+        {% elif section == 'security' %}
+
+        <section class="card"><em>Coming soon: {{ section }}</em></section>
+
         {% else %}
         <section class="card"><em>Coming soon: {{ section }}</em></section>
         {% endif %}
