@@ -7,12 +7,14 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import select, func
 from typing import Sequence
+import logging
 
 # App components
 from app.db.init_db import init_db
 from scheduler import start_scheduler
 from app.db.session import SessionLocal
 from app.db.models import User
+
 
 # Routers
 from app.api.auth import router as auth_router
@@ -84,7 +86,10 @@ if not _no_users_exist():
 @app.on_event("startup")
 async def _start_schedulers():
     # ξεκίνα το reminders loop (fire-and-forget task)
-    asyncio.create_task(reminders_scheduler_loop())
+    #asyncio.create_task(reminders_scheduler_loop())
+    # ξεκίνα το reminders loop (fire-and-forget task)
+    t = asyncio.create_task(reminders_scheduler_loop(), name="reminders-scheduler")
+    logging.getLogger(__name__).info("Started reminders scheduler task: %s", t.get_name())
 
 @app.exception_handler(StarletteHTTPException)
 async def auth_redirect_handler(request: Request, exc: StarletteHTTPException):

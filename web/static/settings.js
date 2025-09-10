@@ -676,12 +676,12 @@ document.getElementById("formAddAccount")?.addEventListener("submit", async (e)=
   }
 
   // φτιάχνει ένα checkbox-tile
-  function folderTile(accountId, folderName, checked){
+  function folderTile(accountId, folderName, checked, label){
     const lbl = document.createElement('label');
     lbl.className = 'folder-check';
     lbl.innerHTML = `
       <input type="checkbox" data-folder value="${escapeHtml(folderName)}" ${checked ? 'checked' : ''}>
-      <span class="label-text">${escapeHtml(folderName)}</span>
+      <span class="label-text">${escapeHtml(label ?? folderName)}</span>
     `;
     lbl.dataset.accountId = String(accountId);
     return lbl;
@@ -704,7 +704,9 @@ document.getElementById("formAddAccount")?.addEventListener("submit", async (e)=
         return;
       }
       for(const name of available){
-        grid.appendChild(folderTile(accountId, name, selected.has(name)));
+        const raw = (typeof name === 'string') ? name : name.name;
+        const lab = (typeof name === 'string') ? name : (name.label || name.name);
+        grid.appendChild(folderTile(accountId, raw, selected.has(raw), lab));
       }
     }catch(e){
       grid.innerHTML = `<div class="muted">Σφάλμα κατά τη φόρτωση φακέλων.</div>`;

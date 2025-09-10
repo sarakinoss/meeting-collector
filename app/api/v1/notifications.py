@@ -11,6 +11,8 @@ from sqlalchemy import and_
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
+import asyncio
+import logging
 
 from app.db.session import get_db, SessionLocal
 from app.db.models import UserPreferences, Meeting, SentNotification
@@ -400,6 +402,7 @@ def _resolve_smtp_for_row(row: UserPreferences):
 def reminders_tick_once():
     """Τρέχει ΜΙΑ φορά: βρίσκει τι πρέπει να σταλεί στο τρέχον λεπτό και το στέλνει μία φορά."""
     db = SessionLocal()
+    sent_counter = 0
     try:
         tz = ZoneInfo(TZ_NAME)
         now_local = datetime.now(tz)
@@ -472,18 +475,39 @@ def reminders_tick_once():
                         sent_at=datetime.now(timezone.utc)
                     ))
                     db.commit()
+                    sent_counter += 1
                 except Exception:
                     db.rollback()
                     # (προαιρετικά: log)
                     continue
     finally:
         db.close()
+    return sent_counter
 
 async def reminders_scheduler_loop():
     """Τρέχει για πάντα: συγχρονίζεται στην αρχή του κάθε λεπτού και καλεί το tick."""
+    # while True:
+    #     now = datetime.now(timezone.utc)
+    #     # ύπνος μέχρι την αρχή του επόμενου λεπτού
+    #     sleep_s = 60 - (now.second + now.microsecond/1_000_000)
+    #     await asyncio.sleep(max(0.01, sleep_s))
+    #     reminders_tick_once()
+    log = logging.getLogger(__name__)
     while True:
-        now = datetime.now(timezone.utc)
-        # ύπνος μέχρι την αρχή του επόμενου λεπτού
-        sleep_s = 60 - (now.second + now.microsecond/1_000_000)
-        await asyncio.sleep(max(0.01, sleep_s))
-        reminders_tick_once()
+        try:
+            now = datetime.now(timezone.utc)
+            # ύπνος μέχρι την αρχή του επόμενου λεπτού
+            sleep_s = 60 - (now.second + now.microsecond/1_000_000)
+            await asyncio.sleep(max(0.01, sleep_s))
+            # Τρέξε το sync tick σε thread, για να μη μπλοκάρει τον event loop
+            sent = await asyncio.to_thread(reminders_tick_once)
+            if sent:
+                log.info("Reminders tick sent=%s", sent)
+        except asyncio.CancelledError:
+            log.info("Reminders scheduler cancelled. Exiting loop.")
+            break
+        except Exception:
+            # Μην αφήσεις το task να πεθάνει — log & συνέχισε στον επόμενο κύκλο
+            log.exception("Reminders scheduler tick crashed; continuing next minute.")
+            # προαιρετικό: ένα μικρό backoff ώστε να μη σφυροκοπά σε συνεχόμενα errors
+            await asyncio.sleep(1.0)
